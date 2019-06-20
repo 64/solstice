@@ -9,7 +9,7 @@ License: GPLv3
 Requires nightly rust and QEMU.
 
 ```
-rustup component add llvm-tools-preview
+rustup component add llvm-tools-preview rust-src
 cargo install cargo-xbuild bootimage
 ```
 
