@@ -65,7 +65,9 @@ impl<T: core::fmt::Debug> core::fmt::Debug for SpinLock<T> {
                     .field("data", &temp.data)
                     .finish(),
             None =>
-                write!(f, "[Debug: Mutex is locked]\n")
+                f.debug_struct("SpinLock")
+                    .field("data", b"<locked>")
+                    .finish()
         }
     }
 }
