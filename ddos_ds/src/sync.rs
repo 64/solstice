@@ -3,7 +3,7 @@ use core::{
     ops::{Deref, DerefMut},
     sync::atomic::{spin_loop_hint, AtomicBool, Ordering},
 };
-use core::fmt::Debug;
+use core::fmt::{Debug, Pointer};
 use core::borrow::Borrow;
 
 pub struct SpinLock<T> {
@@ -61,7 +61,9 @@ impl<T: core::fmt::Debug> core::fmt::Debug for SpinLock<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self.try_lock() {
             Some(temp) =>
-                write!(f, "[Debug Mutex: Data: {:?}\n", temp.data),
+                f.debug_struct("SpinLock")
+                    .field("data", &temp.data)
+                    .finish(),
             None =>
                 write!(f, "[Debug: Mutex is locked]\n")
         }
