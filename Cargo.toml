@@ -4,6 +4,11 @@ version = "0.1.0"
 authors = ["Matt Taylor"]
 edition = "2018"
 
+[workspace]
+members = [
+    "ddos_ds"
+]
+
 [profile.dev]
 panic = "abort"
 
@@ -12,4 +17,5 @@ panic = "abort"
 
 [dependencies]
 bootloader = "0.6.0"
+ddos_ds = { path = "ddos_ds" }
 

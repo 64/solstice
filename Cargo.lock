@@ -36,7 +36,12 @@ name = "ddos"
 version = "0.1.0"
 dependencies = [
  "bootloader 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ddos_ds 0.1.0",
 ]
+
+[[package]]
+name = "ddos_ds"
+version = "0.1.0"
 
 [[package]]
 name = "fixedvec"
