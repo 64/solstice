@@ -17,6 +17,7 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     println!("HELLO WORLD");
+    println!("something that is so much longer than 80 characters aka the width of the console of this project");
 
     #[allow(clippy::empty_loop)]
     loop {}

@@ -3,7 +3,7 @@ use ddos_ds::SpinLock;
 use lazy_static::lazy_static;
 
 const WIDTH: usize = 80;
-// const HEIGHT: usize = 25;
+const HEIGHT: usize = 25;
 
 pub struct Writer {
     buf: &'static mut [u16],
@@ -12,10 +12,53 @@ pub struct Writer {
 }
 
 impl Writer {
+    pub fn handle_escapes(&mut self, ch: u8) -> bool {
+        /// Handles escape characters for writing to the screen.
+        ///
+        /// Done: \n, \t
+        /// TODO: All the other escape characters (\r, etc...)
+        ///
+        /// Returns true if the character is an escape character, false if it's not.
+        /// If it's an escape character, then the `x` and `y` positions do not
+        /// have to be incremented because that's handled inside this function.
+        match ch {
+            b'\n' => {
+                self.y += 1;
+                self.x = 0;
+                return true;
+            }
+            b'\t' => {
+                self.write_string("    ");
+                return true;
+            }
+        }
+    }
+
+    pub fn handle_scrolling(&mut self) {
+        
+    }
+
+    pub fn handle_cursor_position(&mut self, ch: u8) {
+        // Handles position of the cursor, does not handle scrolling.
+        if self.x < WIDTH {
+            return;
+        }
+        self.x = 0;
+        self.y += 1;
+    }
+
     pub fn write_byte(&mut self, ch: u8) {
+        // Write a byte to the screen, handles escape characters and updates positions.
+
+        // Handle escape characters.
+        if handle_escapes(ch) {
+            return;
+        }
+
+        /// Actually write the character to the screen, escapes have been handled previously no need to worry about those anymore.
         self.buf[self.y * WIDTH + self.x] = (0x0B << 8) | u16::from(ch);
 
-        self.x += 1; // TODO: Properly handle newlines, tabs, scrolling etc
+        self.x += 1; // TODO: Properly handle scrolling etc
     }
 
     pub fn write_string(&mut self, s: &str) {
