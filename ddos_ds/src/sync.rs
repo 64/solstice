@@ -33,15 +33,7 @@ impl<T> SpinLock<T> {
             data: unsafe { &mut *self.data.get() },
         }
     }
-}
 
-impl<T: Default> Default for SpinLock<T> {
-    fn default() -> Self {
-        Self::new(T::default())
-    }
-}
-
-impl<T> SpinLock<T> {
     pub fn try_lock(&self) -> Option<SpinLockGuard<T>> {
         if self.locked.compare_and_swap(false, true, Ordering::Acquire) == false {
             Some(SpinLockGuard {
@@ -51,6 +43,12 @@ impl<T> SpinLock<T> {
         } else {
             None
         }
+    }
+}
+
+impl<T: Default> Default for SpinLock<T> {
+    fn default() -> Self {
+        Self::new(T::default())
     }
 }
 
