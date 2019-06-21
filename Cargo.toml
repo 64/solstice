@@ -15,6 +15,10 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+#lto = true
+
+[package.metadata.bootimage]
+run-command = ["qemu-system-x86_64", "-drive", "format=raw,file={}", "-enable-kvm"]
 
 [dependencies]
 x86_64 = "0.7.1"
