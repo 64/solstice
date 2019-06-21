@@ -17,7 +17,9 @@ panic = "abort"
 panic = "abort"
 
 [dependencies]
+x86_64 = "0.7.1"
 bootloader = "0.6.0"
 ddos_ds = { path = "ddos_ds" }
 ddos_drivers = { path = "ddos_drivers" }
 log = "0.4.6"
+lazy_static = "1.3.0"

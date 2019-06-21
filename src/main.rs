@@ -10,11 +10,24 @@ extern crate ddos_drivers as drivers;
 extern crate ddos_ds as ds;
 
 use core::panic::PanicInfo;
+use x86_64::structures;
+use x86_64::structures::gdt::Descriptor;
+use x86_64::structures::gdt::GlobalDescriptorTable;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref GDT: GlobalDescriptorTable = {
+        let mut gdt = GlobalDescriptorTable::new();
+        gdt.add_entry(structures::gdt::Descriptor::UserSegment(0));
+        gdt.add_entry(structures::gdt::Descriptor::kernel_code_segment());
+        gdt
+    };
+}
 
 #[panic_handler]
 #[allow(clippy::empty_loop)]
-fn panic(_info: &PanicInfo) -> ! {
-    error!("{}", _info);
+fn panic(info: &PanicInfo) -> ! {
+    error!("{}", info);
     loop {}
 }
 
@@ -32,7 +45,7 @@ pub extern "C" fn _start() -> ! {
     let x = "test 5";
     dbg!(x);
 
-    panic!("Kernel panic!");
+    GDT.load();
 
     #[allow(clippy::empty_loop)]
     loop {}
