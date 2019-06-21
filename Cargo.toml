@@ -6,7 +6,8 @@ edition = "2018"
 
 [workspace]
 members = [
-    "ddos_ds"
+    "ddos_ds",
+    "ddos_drivers",
 ]
 
 [profile.dev]
@@ -18,4 +19,5 @@ panic = "abort"
 [dependencies]
 bootloader = "0.6.0"
 ddos_ds = { path = "ddos_ds" }
+ddos_drivers = { path = "ddos_drivers" }
 

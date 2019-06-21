@@ -3,8 +3,6 @@ use core::{
     ops::{Deref, DerefMut},
     sync::atomic::{spin_loop_hint, AtomicBool, Ordering},
 };
-use core::fmt::{Debug, Pointer};
-use core::borrow::Borrow;
 
 pub struct SpinLock<T> {
     locked: AtomicBool,
@@ -46,11 +44,10 @@ impl<T: Default> Default for SpinLock<T> {
 impl<T> SpinLock<T> {
     pub fn try_lock(&self) -> Option<SpinLockGuard<T>> {
         if self.locked.compare_and_swap(false, true, Ordering::Acquire) == false {
-            Some(
-                SpinLockGuard {
-                    locked: &self.locked,
-                    data: unsafe { &mut *self.data.get() }
-                })
+            Some(SpinLockGuard {
+                locked: &self.locked,
+                data: unsafe { &mut *self.data.get() },
+            })
         } else {
             None
         }
@@ -60,14 +57,14 @@ impl<T> SpinLock<T> {
 impl<T: core::fmt::Debug> core::fmt::Debug for SpinLock<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self.try_lock() {
-            Some(temp) =>
-                f.debug_struct("SpinLock")
-                    .field("data", &temp.data)
-                    .finish(),
-            None =>
-                f.debug_struct("SpinLock")
-                    .field("data", b"<locked>")
-                    .finish()
+            Some(temp) => f
+                .debug_struct("SpinLock")
+                .field("data", &temp.data)
+                .finish(),
+            None => f
+                .debug_struct("SpinLock")
+                .field("data", b"<locked>")
+                .finish(),
         }
     }
 }
