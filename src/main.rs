@@ -11,6 +11,7 @@ use core::panic::PanicInfo;
 #[panic_handler]
 #[allow(clippy::empty_loop)]
 fn panic(_info: &PanicInfo) -> ! {
+    println!("{}", _info);
     loop {}
 }
 
@@ -18,9 +19,6 @@ fn panic(_info: &PanicInfo) -> ! {
 pub extern "C" fn _start() -> ! {
     println!("HELLO WORLD");
     println!("something that is so much longer than 80 characters aka the width of the console of this project oh, and a few\t1\t2\t3\t4\t5 tabs :)\n1\n2\n3 \\n's aswel :)");
-    let mut i = 0;
-    loop {
-        println!("test {}", i);
-        i += 1;
-    }
+    panic!("Kernel panic!");
+    loop {}
 }
