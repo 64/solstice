@@ -52,9 +52,6 @@ impl Writer {
                 WIDTH * (HEIGHT - 1),
             );
         }
-        for i in WIDTH..(WIDTH * HEIGHT) {
-            self.buf[i - WIDTH] = self.buf[i];
-        }
         self.y = HEIGHT - 1;
         self.x = 0;
     }
