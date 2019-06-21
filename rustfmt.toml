@@ -1,0 +1,5 @@
+imports_layout = "HorizontalVertical"
+merge_imports = true
+normalize_comments = true
+wrap_comments = true
+format_strings = true

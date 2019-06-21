@@ -20,4 +20,4 @@ panic = "abort"
 bootloader = "0.6.0"
 ddos_ds = { path = "ddos_ds" }
 ddos_drivers = { path = "ddos_drivers" }
-
+log = "0.4.6"
