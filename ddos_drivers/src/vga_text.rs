@@ -132,6 +132,30 @@ macro_rules! println {
     ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
 
+#[macro_export]
+// Liftedn from standard library
+macro_rules! dbg {
+    () => {
+        println!("[DEBUG {}:{}]", file!(), line!());
+    };
+    ($val:expr) => {
+        // Use of `match` here is intentional because it affects the lifetimes
+        // of temporaries - https://stackoverflow.com/a/48732525/1063961
+        match $val {
+            tmp => {
+                println!(
+                    "[DEBUG {}:{}] {} = {:#?}",
+                    file!(),
+                    line!(),
+                    stringify!($val),
+                    &tmp
+                );
+                tmp
+            }
+        }
+    };
+}
+
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;

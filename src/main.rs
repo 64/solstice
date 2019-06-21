@@ -26,6 +26,9 @@ pub extern "C" fn _start() -> ! {
     warn!("test 3");
     error!("test 4");
 
+    let x = "test 5";
+    dbg!(x);
+
     #[allow(clippy::empty_loop)]
     loop {}
 }
