@@ -1,52 +1,46 @@
 #![no_std]
 #![no_main]
-
+#![feature(custom_test_frameworks)]
+#![test_runner(crate::testing::test_runner)]
+#![reexport_test_harness_main = "test_main"]
 #[macro_use]
 extern crate log;
-
 #[macro_use]
 extern crate ddos_drivers as drivers;
-
 extern crate ddos_ds as ds;
 
+mod cpu;
+mod kernel;
+mod qemu;
+mod testing;
+
 use core::panic::PanicInfo;
-use x86_64::structures;
-use x86_64::structures::gdt::Descriptor;
-use x86_64::structures::gdt::GlobalDescriptorTable;
-use lazy_static::lazy_static;
-
-lazy_static! {
-    static ref GDT: GlobalDescriptorTable = {
-        let mut gdt = GlobalDescriptorTable::new();
-        gdt.add_entry(structures::gdt::Descriptor::UserSegment(0));
-        gdt.add_entry(structures::gdt::Descriptor::kernel_code_segment());
-        gdt
-    };
-}
-
-#[panic_handler]
-#[allow(clippy::empty_loop)]
-fn panic(info: &PanicInfo) -> ! {
-    error!("{}", info);
-    loop {}
-}
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    println!("HELLO WORLD");
-    println!("something that is so much longer than 80 characters aka the width of the console of this project oh, and a few\t1\t2\t3\t4\t5 tabs :)\n1\n2\n3 \\n's aswel :)");
-    drivers::vga_text::init().unwrap();
+    kernel::kernel_main();
 
-    debug!("test 1");
-    info!("test 2");
-    warn!("test 3");
-    error!("test 4");
+    // Run tests
+    #[cfg(test)]
+    test_main();
 
-    let x = "test 5";
-    dbg!(x);
+    info!("nothing to do, halting...");
 
-    GDT.load();
+    loop {
+        // x86_64::instructions::interrupts::enable();
+        x86_64::instructions::hlt();
+    }
+}
 
-    #[allow(clippy::empty_loop)]
-    loop {}
+#[panic_handler]
+#[cfg(not(test))]
+#[allow(clippy::empty_loop)]
+fn panic(info: &PanicInfo) -> ! {
+    error!("{}", info);
+
+    // Halt CPU
+    loop {
+        x86_64::instructions::interrupts::disable();
+        x86_64::instructions::hlt();
+    }
 }

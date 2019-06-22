@@ -2,12 +2,13 @@ use core::fmt;
 use ddos_ds::SpinLock;
 use lazy_static::lazy_static;
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
+use volatile::Volatile;
 
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
 
 pub struct Writer {
-    buf: &'static mut [u16],
+    buf: &'static mut [Volatile<u16>],
     x: usize,
     y: usize,
 }
@@ -77,7 +78,7 @@ impl Writer {
 
         // Actually write the character to the screen, escapes have been handled
         // previously no need to worry about those anymore.
-        self.buf[self.y * WIDTH + self.x] = (0x0B << 8) | u16::from(ch);
+        self.buf[self.y * WIDTH + self.x].write((0x0B << 8) | u16::from(ch));
 
         self.update_cursor_position();
     }
@@ -108,7 +109,7 @@ pub fn init() -> Result<(), SetLoggerError> {
 
 lazy_static! {
     pub static ref WRITER: SpinLockWriter = SpinLockWriter(SpinLock::new(Writer {
-        buf: unsafe { core::slice::from_raw_parts_mut(0xB8000 as *mut u16, 80 * 25) },
+        buf: unsafe { core::slice::from_raw_parts_mut(0xB8000 as *mut Volatile<u16>, 80 * 25) },
         x: 0,
         y: 0,
     }));

@@ -1,3 +1,5 @@
+cargo-features = ["profile-overrides"]
+
 [package]
 name = "ddos"
 version = "0.1.0"
@@ -12,6 +14,18 @@ members = [
 
 [profile.dev]
 panic = "abort"
+debug = false
+
+[package.metadata.bootimage]
+run-command = [
+    "qemu-system-x86_64",
+    "-drive", "format=raw,file={}"
+]
+test-args = [
+    "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
+    "-display", "none"
+]
+test-success-exit-code = 33
 
 [profile.release]
 panic = "abort"
