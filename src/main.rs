@@ -1,40 +1,46 @@
 #![no_std]
 #![no_main]
-
+#![feature(custom_test_frameworks)]
+#![test_runner(crate::testing::test_runner)]
+#![reexport_test_harness_main = "test_main"]
 #[macro_use]
 extern crate log;
-
 #[macro_use]
 extern crate ddos_drivers as drivers;
-
 extern crate ddos_ds as ds;
 
 mod cpu;
+mod kernel;
+mod qemu;
+mod testing;
 
 use core::panic::PanicInfo;
-#[panic_handler]
-#[allow(clippy::empty_loop)]
-fn panic(info: &PanicInfo) -> ! {
-    error!("{}", info);
-    loop {}
-}
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    drivers::vga_text::init().unwrap();
+    kernel::kernel_main();
 
-    cpu::gdt::load();
+    // Run tests
+    #[cfg(test)]
+    test_main();
 
-    debug!("test 1");
-    info!("test 2");
-    warn!("test 3");
-    error!("test 4");
-
-    let x = "test 5";
-    dbg!(x);
+    info!("nothing to do, halting...");
 
     loop {
         // x86_64::instructions::interrupts::enable();
+        x86_64::instructions::hlt();
+    }
+}
+
+#[panic_handler]
+#[cfg(not(test))]
+#[allow(clippy::empty_loop)]
+fn panic(info: &PanicInfo) -> ! {
+    error!("{}", info);
+
+    // Halt CPU
+    loop {
+        x86_64::instructions::interrupts::disable();
         x86_64::instructions::hlt();
     }
 }

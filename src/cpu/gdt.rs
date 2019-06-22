@@ -21,4 +21,5 @@ lazy_static! {
 
 pub fn load() {
     GDT.load();
+    info!("GDT loaded");
 }
