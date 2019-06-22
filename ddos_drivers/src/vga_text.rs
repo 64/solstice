@@ -5,6 +5,8 @@ use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortWrite, PortRead};
 
+use crate::serial;
+
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
 
@@ -88,6 +90,11 @@ impl Writer {
     }
 
     pub fn write_string(&mut self, s: &str) {
+
+        // If dbg, write string to serial port first
+        #[cfg(debug_assertions)]
+        serial::write_string(s);
+
         let mut pos: u16 = 0;
         for byte in s.bytes() {
             // TODO: Handle non-ascii chars
@@ -107,7 +114,11 @@ impl Writer {
 pub struct SpinLockWriter(SpinLock<Writer>);
 
 pub fn init() -> Result<(), SetLoggerError> {
+    #[cfg(debug_assertions)]
+    serial::init();
+
     enable_cursor();
+
     log::set_logger(&*WRITER).map(|()| {
         #[cfg(debug_assertions)]
         log::set_max_level(LevelFilter::Debug);
