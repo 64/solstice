@@ -3,6 +3,7 @@ use ddos_ds::SpinLock;
 use lazy_static::lazy_static;
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use volatile::Volatile;
+use x86_64::instructions::port::{PortWrite, PortRead};
 
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
@@ -69,24 +70,32 @@ impl Writer {
 
     /// Write a byte to the screen, handles escape characters and updates
     /// positions.
-    pub fn write_byte(&mut self, ch: u8) {
+    /// Returns position of most recently written character
+    pub fn write_byte(&mut self, ch: u8) -> u16 {
         if self.handle_escapes(ch) {
-            return;
+            return 0;
         }
 
         self.handle_scrolling();
 
         // Actually write the character to the screen, escapes have been handled
         // previously no need to worry about those anymore.
+        let pos: u16 = (self.y * WIDTH + self.x) as u16;
         self.buf[self.y * WIDTH + self.x].write((0x0B << 8) | u16::from(ch));
 
         self.update_cursor_position();
+        return pos;
     }
 
     pub fn write_string(&mut self, s: &str) {
+        let mut pos: u16 = 0;
         for byte in s.bytes() {
             // TODO: Handle non-ascii chars
-            self.write_byte(byte);
+            pos = self.write_byte(byte);
+        }
+
+        if pos != 0 {
+            update_cursor(pos);
         }
     }
 }
@@ -98,6 +107,7 @@ impl Writer {
 pub struct SpinLockWriter(SpinLock<Writer>);
 
 pub fn init() -> Result<(), SetLoggerError> {
+    enable_cursor();
     log::set_logger(&*WRITER).map(|()| {
         #[cfg(debug_assertions)]
         log::set_max_level(LevelFilter::Debug);
@@ -105,6 +115,34 @@ pub fn init() -> Result<(), SetLoggerError> {
         #[cfg(not(debug_assertions))]
         log::set_max_level(LevelFilter::Info);
     })
+}
+
+fn update_cursor(pos: u16) {
+    unsafe {
+        PortWrite::write_to_port(0x3D4 as u16, 0x0F as u8);
+        PortWrite::write_to_port(0x3D5 as u16, (pos & 0xFF) as u16);
+        PortWrite::write_to_port(0x3D4 as u16, 0x0E as u8);
+        PortWrite::write_to_port(0x3D5 as u16, ((pos >> 8) & 0xFF) as u16);
+    }
+}
+
+fn enable_cursor() {
+    unsafe {
+        PortWrite::write_to_port(0x3D4 as u16, 0x0A as u8);
+        let old: u16 = PortRead::read_from_port(0x3d5);
+        PortWrite::write_to_port(0x3D5 as u16, ((old & 0xC0) | 0) as u8);
+
+        PortWrite::write_to_port(0x3D4 as u16, 0x0B as u8);
+        let old: u16 = PortRead::read_from_port(0x3d5);
+        PortWrite::write_to_port(0x3D5 as u16, ((old & 0xE0) | 15) as u8);
+    }
+}
+
+fn disable_cursor() {
+    unsafe {
+        PortWrite::write_to_port(0x3D4 as u16, 0x0A as u8);
+        PortWrite::write_to_port(0x3D5 as u16, 0x20 as u8);
+    }
 }
 
 lazy_static! {

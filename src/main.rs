@@ -5,7 +5,6 @@
 #![reexport_test_harness_main = "test_main"]
 #[macro_use]
 extern crate log;
-#[macro_use]
 extern crate ddos_drivers as drivers;
 extern crate ddos_ds as ds;
 
