@@ -3,6 +3,7 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(crate::testing::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![feature(abi_x86_interrupt)]
 #[macro_use]
 extern crate log;
 extern crate ddos_drivers as drivers;
@@ -18,6 +19,8 @@ use core::panic::PanicInfo;
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     kernel::kernel_main();
+
+    x86_64::instructions::interrupts::int3();
 
     // Run tests
     #[cfg(test)]
