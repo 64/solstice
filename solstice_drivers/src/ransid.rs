@@ -23,7 +23,7 @@ pub struct ColorChar {
     pub ascii: u8,
 }
 
-fn ransid_convert_color(color: u8) -> u8 {
+fn convert_color(color: u8) -> u8 {
     let lookup_table: [u8; 8] = [0, 4, 2, 6, 1, 5, 3, 7];
     lookup_table[color as usize]
 }
