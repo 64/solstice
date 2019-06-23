@@ -1,20 +1,28 @@
 #![no_std]
 #![no_main]
-#![feature(custom_test_frameworks)]
 #![test_runner(crate::testing::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![feature(custom_test_frameworks)]
 #![feature(abi_x86_interrupt)]
 #![feature(custom_inner_attributes)]
+#![feature(core_intrinsics)]
+#![feature(asm)]
+
 #[macro_use]
 extern crate log;
+
 #[macro_use]
-extern crate solstice_drivers as drivers;
-extern crate solstice_ds as ds;
+mod drivers;
+
+// TODO: Ideally put this above drivers so we can test that too
+// Would require moving println et al out of the drivers module
+#[macro_use]
+mod testing;
 
 mod cpu;
+mod ds;
 mod kernel;
 mod qemu;
-mod testing;
 
 #[allow(unused_imports)]
 use core::panic::PanicInfo;

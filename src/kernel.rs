@@ -1,8 +1,9 @@
 #![rustfmt::skip]
 use crate::cpu;
+use crate::drivers;
 
 pub fn kernel_main() {
-    drivers::vga_text::init().unwrap();
+    drivers::vga::text_mode::init().unwrap();
 
     println!("  _____       _     _   _             Join us at discord.gg/vnyVmAE");
     println!(" / ____|     | |   | | (_)            Developed by members:");
@@ -10,7 +11,7 @@ pub fn kernel_main() {
     println!(" \\___ \\ / _ \\| / __| __| |/ __/ _ \\   {:11} {:11} {:11}", "Crally", "TBA", "TBA");
     println!(" ____) | (_) | \\__ \\ |_| | (_|  __/   {:11} {:11} {:11}", "Mehodin", "TBA", "TBA");
     println!("|_____/ \\___/|_|___/\\__|_|\\___\\___|   {:11} {:11} {:11}", "Styxs", "TBA", "TBA");
-    println!("");
+    println!();
 
     cpu::gdt::load();
     cpu::idt::load();

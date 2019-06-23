@@ -91,3 +91,8 @@ impl<T> Drop for SpinLockGuard<'_, T> {
         self.locked.store(false, Ordering::Release);
     }
 }
+
+// TODO: Add proper tests
+test_case!(spin_lock, {
+    assert_eq!(1, 1);
+});

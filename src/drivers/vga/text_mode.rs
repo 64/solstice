@@ -1,11 +1,11 @@
+use crate::ds::SpinLock;
 use core::fmt;
-use ds::SpinLock;
 use lazy_static::lazy_static;
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
 
-use crate::serial;
+use crate::drivers::serial;
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
@@ -18,7 +18,7 @@ pub enum Color {
     Green = 0x02,
     Cyan = 0x03,
     Red = 0x04,
-    Magent = 0x05,
+    Magenta = 0x05,
     Brown = 0x06,
     LightGrey = 0x07,
     DarkGrey = 0x08,
@@ -26,7 +26,7 @@ pub enum Color {
     LightGreen = 0x0A,
     LightCyan = 0x0B,
     LightRed = 0x0C,
-    LightMagent = 0x0D,
+    LightMagenta = 0x0D,
     LightBrown = 0x0E,
     White = 0x0F,
 }
@@ -136,7 +136,7 @@ impl Writer {
 pub struct SpinLockWriter(SpinLock<Writer>);
 
 pub fn init() -> Result<(), SetLoggerError> {
-    // TODO: Refactor this into separate module
+    // TODO: Refactor this into separate module (how about vga/mod.rs)
     #[cfg(debug_assertions)]
     serial::init();
 
@@ -200,19 +200,17 @@ impl fmt::Write for Writer {
     }
 }
 
-#[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::vga_text::_print(format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::drivers::vga::text_mode::_print(format_args!($($arg)*)));
 }
 
-#[macro_export]
 macro_rules! println {
-    () => ($crate::print!("\n"));
-    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+    () => (print!("\n"));
+    ($($arg:tt)*) => (print!("{}\n", format_args!($($arg)*)));
 }
 
-#[macro_export]
-// Liftedn from standard library
+// Lifted from standard library
+#[allow(unused_macros)]
 macro_rules! dbg {
     () => {
         println!("[DEBUG {}:{}]", file!(), line!());

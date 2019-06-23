@@ -1,6 +1,0 @@
-[package]
-name = "solstice_ds"
-version = "0.1.0"
-authors = ["Matt Taylor"]
-edition = "2018"
-description = "Data structures for Solstice"
