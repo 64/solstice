@@ -1,12 +1,12 @@
 [package]
-name = "ddos_drivers"
+name = "solstice_drivers"
 version = "0.1.0"
 authors = ["Matt Taylor"]
 edition = "2018"
 
 [dependencies]
 lazy_static = { version = "1", features = ["spin_no_std"] }
-ddos_ds = { path = "../ddos_ds" }
+solstice_ds = { path = "../solstice_ds" }
 log = "0.4.6"
 volatile = "0.2.6"
 x86_64 = "0.7.1"

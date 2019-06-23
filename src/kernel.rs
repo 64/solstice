@@ -3,12 +3,12 @@ use crate::cpu;
 pub fn kernel_main() {
     drivers::vga_text::init().unwrap();
 
-    println!(" __          ___           _  ____   _____  Join us at discord.gg/vnyVmAE");
-    println!(" \\ \\        / (_)         | |/ __ \\ / ____| Developed by members:");
-    println!("  \\ \\  /\\  / / _ _ __   __| | |  | | (___   {:11} {:11} {:11}", "vinc", "Alex8675", "TBA");
-    println!("   \\ \\/  \\/ / | | '_ \\ / _` | |  | |\\___ \\  {:11} {:11} {:11}", "Crally", "TBA", "TBA");
-    println!("    \\  /\\  /  | | | | | (_| | |__| |____) | {:11} {:11} {:11}", "Mehodin", "TBA", "TBA");
-    println!("     \\/  \\/   |_|_| |_|\\__,_|\\____/|_____/  {:11} {:11} {:11}", "Styxs", "TBA", "TBA");
+    println!("  _____       _     _   _             Join us at discord.gg/vnyVmAE");
+    println!(" / ____|     | |   | | (_)            Developed by members:");
+    println!("| (___   ___ | |___| |_ _  ___ ___    {:11} {:11} {:11}", "vinc", "Alex8675", "TBA");
+    println!(" \\___ \\ / _ \\| / __| __| |/ __/ _ \\   {:11} {:11} {:11}", "Crally", "TBA", "TBA");
+    println!(" ____) | (_) | \\__ \\ |_| | (_|  __/   {:11} {:11} {:11}", "Mehodin", "TBA", "TBA");
+    println!("|_____/ \\___/|_|___/\\__|_|\\___\\___|   {:11} {:11} {:11}", "Styxs", "TBA", "TBA");
     println!("");
 
     cpu::gdt::load();
