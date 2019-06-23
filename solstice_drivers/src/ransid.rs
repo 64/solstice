@@ -1,16 +1,14 @@
-use crate::{ransid, vga_text};
+const ESC: u8 = b'\x1B';
 
 pub enum State {
-    RANSID_ESC,
-    RANSID_BRACKET,
-    RANSID_PARSE,
-    RANSID_BGCOLOR,
-    RANSID_FGCOLOR,
-    RANSID_EQUALS,
-    RANSID_ENDVAL,
+    Esc,
+    Bracket,
+    Parse,
+    BgColor,
+    FgColor,
+    Equals,
+    EndVal,
 }
-
-const ESC: u8 = b'\x1B';
 
 pub struct RansidState {
     pub state: State,
@@ -32,87 +30,88 @@ impl RansidState {
     pub fn ransid_process(&mut self, x: u8) -> ColorChar {
         let mut rv = ColorChar {
             style: self.style,
-            ascii: '\0' as u8,
+            ascii: b'\0',
         };
         match self.state {
-            State::RANSID_ESC => {
+            State::Esc => {
                 if x == ESC {
-                    self.state = State::RANSID_BRACKET;
+                    self.state = State::Bracket;
                 } else {
                     rv.ascii = x;
                 }
             }
-            State::RANSID_BRACKET => {
+            State::Bracket => {
                 if x == b'[' {
-                    self.state = State::RANSID_PARSE;
+                    self.state = State::Parse;
                 } else {
-                    self.state = State::RANSID_ESC;
+                    self.state = State::Esc;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_PARSE => {
+            State::Parse => {
                 if x == b'3' {
-                    self.state = State::RANSID_FGCOLOR;
+                    self.state = State::FgColor;
                 } else if x == b'4' {
-                    self.state = State::RANSID_BGCOLOR;
+                    self.state = State::BgColor;
                 } else if x == b'0' {
-                    self.state = State::RANSID_ENDVAL;
+                    self.state = State::EndVal;
                     self.next_style = 0x0F;
                 } else if x == b'1' {
-                    self.state = State::RANSID_ENDVAL;
+                    self.state = State::EndVal;
                     self.next_style |= 1 << 3;
                 } else if x == b'=' {
-                    self.state = State::RANSID_EQUALS;
+                    self.state = State::Equals;
                 } else {
-                    self.state = State::RANSID_ESC;
+                    self.state = State::Esc;
                     self.next_style = self.style;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_BGCOLOR => {
+            State::BgColor => {
                 if x >= b'0' && x <= b'7' {
-                    self.state = State::RANSID_ENDVAL;
+                    self.state = State::EndVal;
                     self.next_style &= 0x1F;
-                    self.next_style |= ransid_convert_color(x - b'0') << 4;
+                    self.next_style |= convert_color(x - b'0') << 4;
                 } else {
-                    self.state = State::RANSID_ESC;
+                    self.state = State::Esc;
                     self.next_style = self.style;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_FGCOLOR => {
+            State::FgColor => {
                 if x >= b'0' && x <= b'7' {
-                    self.state = State::RANSID_ENDVAL;
+                    self.state = State::EndVal;
                     self.next_style &= 0xF8;
-                    self.next_style |= ransid_convert_color(x - b'0');
+                    self.next_style |= convert_color(x - b'0');
                 } else {
-                    self.state = State::RANSID_ESC;
+                    self.state = State::Esc;
                     self.next_style = self.style;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_EQUALS => {
+            State::Equals => {
                 if x == b'1' {
-                    self.state = State::RANSID_ENDVAL;
+                    self.state = State::EndVal;
                     self.next_style &= !(1 << 3);
                 } else {
-                    self.state = State::RANSID_ESC;
+                    self.state = State::Esc;
                     self.next_style = self.style;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_ENDVAL => {
+            State::EndVal => {
                 if x == b';' {
-                    self.state = State::RANSID_PARSE;
+                    self.state = State::Parse;
                 } else if x == b'm' {
-                    self.state = State::RANSID_ESC;
+                    self.state = State::Esc;
                     self.style = self.next_style;
                 } else {
-                    self.state = State::RANSID_ESC;
+                    self.state = State::Esc;
                     self.next_style = self.style;
                 }
             }
         };
+
         rv
     }
 }

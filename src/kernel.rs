@@ -5,11 +5,23 @@ pub fn kernel_main() {
 
     println!("  _____       _     _   _             Join us at discord.gg/vnyVmAE");
     println!(" / ____|     | |   | | (_)            Developed by members:");
-    println!("| (___   ___ | |___| |_ _  ___ ___    {:11} {:11} {:11}", "vinc", "Alex8675", "TBA");
-    println!(" \\___ \\ / _ \\| / __| __| |/ __/ _ \\   {:11} {:11} {:11}", "Crally", "TBA", "TBA");
-    println!(" ____) | (_) | \\__ \\ |_| | (_|  __/   {:11} {:11} {:11}", "Mehodin", "TBA", "TBA");
-    println!("|_____/ \\___/|_|___/\\__|_|\\___\\___|   {:11} {:11} {:11}", "Styxs", "TBA", "TBA");
-    println!("");
+    println!(
+        "| (___   ___ | |___| |_ _  ___ ___    {:11} {:11} {:11}",
+        "vinc", "Alex8675", "TBA"
+    );
+    println!(
+        " \\___ \\ / _ \\| / __| __| |/ __/ _ \\   {:11} {:11} {:11}",
+        "Crally", "TBA", "TBA"
+    );
+    println!(
+        " ____) | (_) | \\__ \\ |_| | (_|  __/   {:11} {:11} {:11}",
+        "Mehodin", "TBA", "TBA"
+    );
+    println!(
+        "|_____/ \\___/|_|___/\\__|_|\\___\\___|   {:11} {:11} {:11}",
+        "Styxs", "TBA", "TBA"
+    );
+    println!();
 
     cpu::gdt::load();
     cpu::idt::load();

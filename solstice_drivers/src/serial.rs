@@ -12,6 +12,7 @@ enum Port {
 const PORT: u16 = Port::COM1 as u16;
 
 pub fn init() {
+    #[allow(clippy::identity_op)]
     unsafe {
         PortWrite::write_to_port(PORT + 1, 0x00 as u8);
         PortWrite::write_to_port(PORT + 3, 0x80 as u8);

@@ -15,13 +15,12 @@ mod kernel;
 mod qemu;
 mod testing;
 
+#[allow(unused_imports)]
 use core::panic::PanicInfo;
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     kernel::kernel_main();
-
-    x86_64::instructions::interrupts::int3();
 
     // Run tests
     #[cfg(test)]

@@ -5,10 +5,7 @@ use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
 
-use crate::{
-    ransid::{self, State::RANSID_FGCOLOR},
-    serial,
-};
+use crate::serial;
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
