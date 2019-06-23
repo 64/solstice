@@ -12,13 +12,14 @@ const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
 
 #[repr(u8)]
+#[allow(unused)]
 enum Color {
     Black = 0x00,
     Blue = 0x01,
     Green = 0x02,
     Cyan = 0x03,
     Red = 0x04,
-    Magent = 0x05,
+    Magenta = 0x05,
     Brown = 0x06,
     LightGrey = 0x07,
     DarkGrey = 0x08,
@@ -26,7 +27,7 @@ enum Color {
     LightGreen = 0x0A,
     LightCyan = 0x0B,
     LightRed = 0x0C,
-    LightMagent = 0x0D,
+    LightMagenta = 0x0D,
     LightBrown = 0x0E,
     White = 0x0F,
 }
