@@ -4,6 +4,8 @@
 
 Rust x86\_64 operating system.
 
+![Img](https://i.imgur.com/oDMVOUm.png)
+
 ## Install
 
 ### Dependencies
