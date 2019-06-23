@@ -1,15 +1,15 @@
 cargo-features = ["profile-overrides"]
 
 [package]
-name = "ddos"
+name = "solstice"
 version = "0.1.0"
 authors = ["Matt Taylor"]
 edition = "2018"
 
 [workspace]
 members = [
-    "ddos_ds",
-    "ddos_drivers",
+    "solstice_ds",
+    "solstice_drivers",
 ]
 
 [profile.dev]
@@ -34,7 +34,7 @@ panic = "abort"
 [dependencies]
 x86_64 = "0.7.1"
 bootloader = "0.6.0"
-ddos_ds = { path = "ddos_ds" }
-ddos_drivers = { path = "ddos_drivers" }
+solstice_ds = { path = "solstice_ds" }
+solstice_drivers = { path = "solstice_drivers" }
 log = "0.4.6"
 lazy_static = "1.3.0"

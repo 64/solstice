@@ -7,8 +7,8 @@
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate ddos_drivers as drivers;
-extern crate ddos_ds as ds;
+extern crate solstice_drivers as drivers;
+extern crate solstice_ds as ds;
 
 mod cpu;
 mod kernel;

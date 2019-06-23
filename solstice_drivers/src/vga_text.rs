@@ -1,5 +1,5 @@
 use core::fmt;
-use ddos_ds::SpinLock;
+use ds::SpinLock;
 use lazy_static::lazy_static;
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use volatile::Volatile;
