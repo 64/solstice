@@ -3,7 +3,7 @@ use ddos_ds::SpinLock;
 use lazy_static::lazy_static;
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use volatile::Volatile;
-use x86_64::instructions::port::{PortWrite, PortRead};
+use x86_64::instructions::port::{PortRead, PortWrite};
 
 use crate::serial;
 
@@ -86,14 +86,15 @@ impl Writer {
         self.buf[self.y * WIDTH + self.x].write((0x0B << 8) | u16::from(ch));
 
         self.update_cursor_position();
-        return pos;
+
+        pos
     }
 
     pub fn write_string(&mut self, s: &str) {
         // If dbg, write string to serial port first
         #[cfg(debug_assertions)]
         serial::write_string(s);
-      
+
         let mut pos: u16 = 0;
         for byte in s.bytes() {
             // TODO: Handle non-ascii chars
@@ -113,11 +114,12 @@ impl Writer {
 pub struct SpinLockWriter(SpinLock<Writer>);
 
 pub fn init() -> Result<(), SetLoggerError> {
+    // TODO: Refactor this into separate module
     #[cfg(debug_assertions)]
     serial::init();
 
     enable_cursor();
-  
+
     log::set_logger(&*WRITER).map(|()| {
         #[cfg(debug_assertions)]
         log::set_max_level(LevelFilter::Debug);
@@ -139,15 +141,16 @@ fn update_cursor(pos: u16) {
 fn enable_cursor() {
     unsafe {
         PortWrite::write_to_port(0x3D4 as u16, 0x0A as u8);
-        let old: u16 = PortRead::read_from_port(0x3d5);
-        PortWrite::write_to_port(0x3D5 as u16, ((old & 0xC0) | 0) as u8);
+        let old: u16 = PortRead::read_from_port(0x3D5);
+        PortWrite::write_to_port(0x3D5 as u16, (old & 0xC0) as u8);
 
         PortWrite::write_to_port(0x3D4 as u16, 0x0B as u8);
-        let old: u16 = PortRead::read_from_port(0x3d5);
+        let old: u16 = PortRead::read_from_port(0x3D5);
         PortWrite::write_to_port(0x3D5 as u16, ((old & 0xE0) | 15) as u8);
     }
 }
 
+#[allow(dead_code)]
 fn disable_cursor() {
     unsafe {
         PortWrite::write_to_port(0x3D4 as u16, 0x0A as u8);
