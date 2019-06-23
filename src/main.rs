@@ -4,6 +4,7 @@
 #![test_runner(crate::testing::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 #![feature(abi_x86_interrupt)]
+#![feature(custom_inner_attributes)]
 #[macro_use]
 extern crate log;
 #[macro_use]

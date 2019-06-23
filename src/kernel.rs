@@ -1,3 +1,4 @@
+#![rustfmt::skip]
 use crate::cpu;
 
 pub fn kernel_main() {
