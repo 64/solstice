@@ -1,4 +1,4 @@
-# solstice
+# Solstice
 
 [![Build Status](https://travis-ci.org/64/solstice.svg?branch=master)](https://travis-ci.org/64/solstice) [![License](https://img.shields.io/badge/license-GPLv3-blue.svg)](https://github.com/64/solstice/blob/master/LICENSE.md)
 
