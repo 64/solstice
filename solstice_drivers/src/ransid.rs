@@ -1,13 +1,13 @@
 use crate::{ransid, vga_text};
 
 pub enum State {
-    RANSID_ESC,
-    RANSID_BRACKET,
-    RANSID_PARSE,
-    RANSID_BGCOLOR,
-    RANSID_FGCOLOR,
-    RANSID_EQUALS,
-    RANSID_ENDVAL,
+    RANSIDESC,
+    RANSIDBRACKET,
+    RANSIDPARSE,
+    RANSIDBGCOLOR,
+    RANSIDFGCOLOR,
+    RANSIDEQUALS,
+    RANSIDENDVAL,
 }
 
 const ESC: u8 = b'\x1B';
@@ -15,8 +15,7 @@ const ESC: u8 = b'\x1B';
 pub struct Ransid_State {
     pub state: State,
     pub style: u8,
-    pub next_style: u8,
-
+    pub nextstyle: u8,
 }
 
 pub struct Color_Char {
@@ -24,7 +23,7 @@ pub struct Color_Char {
     pub ascii: u8,
 }
 
-fn ransid_convert_color(color: u8) -> u8 {
+fn convert_color(color: u8) -> u8 {
     let lookup_table: [u8; 8] = [0, 4, 2, 6, 1, 5, 3, 7];
     lookup_table[color as usize]
 }
@@ -36,81 +35,81 @@ impl Ransid_State {
             ascii: '\0' as u8,
         };
         match self.state {
-            State::RANSID_ESC => {
+            State::RANSIDESC => {
                 if x == ESC {
-                    self.state = State::RANSID_BRACKET;
+                    self.state = State::RANSIDBRACKET;
                 } else {
                     rv.ascii = x;
                 }
             }
-            State::RANSID_BRACKET => {
+            State::RANSIDBRACKET => {
                 if x == b'[' {
-                    self.state = State::RANSID_PARSE;
+                    self.state = State::RANSIDPARSE;
                 } else {
-                    self.state = State::RANSID_ESC;
+                    self.state = State::RANSIDESC;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_PARSE => {
+            State::RANSIDPARSE => {
                 if x == b'3' {
-                    self.state = State::RANSID_FGCOLOR;
+                    self.state = State::RANSIDFGCOLOR;
                 } else if x == b'4' {
-                    self.state = State::RANSID_BGCOLOR;
+                    self.state = State::RANSIDBGCOLOR;
                 } else if x == b'0' {
-                    self.state = State::RANSID_ENDVAL;
-                    self.next_style = 0x0F;
+                    self.state = State::RANSIDENDVAL;
+                    self.nextstyle = 0x0F;
                 } else if x == b'1' {
-                    self.state = State::RANSID_ENDVAL;
-                    self.next_style |= 1 << 3;
+                    self.state = State::RANSIDENDVAL;
+                    self.nextstyle |= 1 << 3;
                 } else if x == b'=' {
-                    self.state = State::RANSID_EQUALS;
+                    self.state = State::RANSIDEQUALS;
                 } else {
-                    self.state = State::RANSID_ESC;
-                    self.next_style = self.style;
+                    self.state = State::RANSIDESC;
+                    self.nextstyle = self.style;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_BGCOLOR => {
+            State::RANSIDBGCOLOR => {
                 if x >= b'0' && x <= b'7' {
-                    self.state = State::RANSID_ENDVAL;
-                    self.next_style &= 0x1F;
-                    self.next_style |= ransid_convert_color(x - b'0') << 4;
+                    self.state = State::RANSIDENDVAL;
+                    self.nextstyle &= 0x1F;
+                    self.nextstyle |= convert_color(x - b'0') << 4;
                 } else {
-                    self.state = State::RANSID_ESC;
-                    self.next_style = self.style;
+                    self.state = State::RANSIDESC;
+                    self.nextstyle = self.style;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_FGCOLOR => {
+            State::RANSIDFGCOLOR => {
                 if x >= b'0' && x <= b'7' {
-                    self.state = State::RANSID_ENDVAL;
-                    self.next_style &= 0xF8;
-                    self.next_style |= ransid_convert_color(x - b'0');
+                    self.state = State::RANSIDENDVAL;
+                    self.nextstyle &= 0xF8;
+                    self.nextstyle |= convert_color(x - b'0');
                 } else {
-                    self.state = State::RANSID_ESC;
-                    self.next_style = self.style;
+                    self.state = State::RANSIDESC;
+                    self.nextstyle = self.style;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_EQUALS => {
+            State::RANSIDEQUALS => {
                 if x == b'1' {
-                    self.state = State::RANSID_ENDVAL;
-                    self.next_style &= !(1 << 3);
+                    self.state = State::RANSIDENDVAL;
+                    self.nextstyle &= !(1 << 3);
                 } else {
-                    self.state = State::RANSID_ESC;
-                    self.next_style = self.style;
+                    self.state = State::RANSIDESC;
+                    self.nextstyle = self.style;
                     rv.ascii = x;
                 }
             }
-            State::RANSID_ENDVAL => {
+            State::RANSIDENDVAL => {
                 if x == b';' {
-                    self.state = State::RANSID_PARSE;
+                    self.state = State::RANSIDPARSE;
                 } else if x == b'm' {
-                    self.state = State::RANSID_ESC;
-                    self.style = self.next_style;
+                    self.state = State::RANSIDESC;
+                    self.style = self.nextstyle;
                 } else {
-                    self.state = State::RANSID_ESC;
-                    self.next_style = self.style;
+                    self.state = State::RANSIDESC;
+                    self.nextstyle = self.style;
                 }
             }
         };
