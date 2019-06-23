@@ -4,7 +4,7 @@
 
 Rust x86\_64 operating system.
 
-![Img](https://i.imgur.com/oDMVOUm.png)
+![Img](https://i.imgur.com/Ezne4LT.png)
 
 ## Install
 
