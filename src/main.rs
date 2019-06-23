@@ -6,6 +6,7 @@
 #![feature(abi_x86_interrupt)]
 #[macro_use]
 extern crate log;
+#[macro_use]
 extern crate ddos_drivers as drivers;
 extern crate ddos_ds as ds;
 

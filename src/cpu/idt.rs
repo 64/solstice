@@ -34,81 +34,81 @@ pub fn load() {
 }
 
 extern "x86-interrupt" fn divide_by_zero_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Zero Division\n{:#?}", frame);
+    panic!("EXCEPTION: Zero Division\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn debug_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Debug\n{:#?}", frame);
+    panic!("EXCEPTION: Debug\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn non_maskable_interrupt_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Non-Maskable Interrupt\n{:#?}", frame);
+    panic!("EXCEPTION: Non-Maskable Interrupt\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn breakpoint_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Breakpoint\n{:#?}", frame);
+    panic!("EXCEPTION: Breakpoint\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn overflow_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Overflow\n{:#?}", frame);
+    panic!("EXCEPTION: Overflow\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn bound_range_exceeded_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Bound Range Exceeded\n{:#?}", frame);
+    panic!("EXCEPTION: Bound Range Exceeded\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn invalid_opcode_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Invalid Opcode\n{:#?}", frame);
+    panic!("EXCEPTION: Invalid Opcode\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn device_not_available_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Device Not Available\n{:#?}", frame);
+    panic!("EXCEPTION: Device Not Available\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn double_fault_handler(frame: &mut idt::InterruptStackFrame, error_code: u64) {
-    warn!("EXCEPTION: Double Fault with error code {}\n{:#?}", error_code, frame);
+    panic!("EXCEPTION: Double Fault with error code {}\n{:#?}", error_code, frame);
 }
 
 extern "x86-interrupt" fn invalid_tss_handler(frame: &mut idt::InterruptStackFrame, error_code: u64) {
-    warn!("EXCEPTION: Invalid TSS with error code {}\n{:#?}", error_code, frame);
+    panic!("EXCEPTION: Invalid TSS with error code {}\n{:#?}", error_code, frame);
 }
 
 extern "x86-interrupt" fn segment_not_present_handler(frame: &mut idt::InterruptStackFrame, error_code: u64) {
-    warn!("EXCEPTION: Segment Not Present with error code {}\n{:#?}", error_code, frame);
+    panic!("EXCEPTION: Segment Not Present with error code {}\n{:#?}", error_code, frame);
 }
 
 extern "x86-interrupt" fn stack_segment_fault_handler(frame: &mut idt::InterruptStackFrame, error_code: u64) {
-    warn!("EXCEPTION: Stack Segment Fault with error code {}\n{:#?}", error_code, frame);
+    panic!("EXCEPTION: Stack Segment Fault with error code {}\n{:#?}", error_code, frame);
 }
 
 extern "x86-interrupt" fn general_protection_fault_handler(frame: &mut idt::InterruptStackFrame, error_code: u64) {
-    warn!("EXCEPTION: General Protection Fault with error code {}\n{:#?}", error_code, frame);
+    panic!("EXCEPTION: General Protection Fault with error code {}\n{:#?}", error_code, frame);
 }
 
 extern "x86-interrupt" fn page_fault_handler(frame: &mut idt::InterruptStackFrame, error_code: idt::PageFaultErrorCode) {
-    warn!("EXCEPTION: Page Fault with error code {:#?}\n{:#?}", error_code, frame);
+    panic!("EXCEPTION: Page Fault with error code {:#?}\n{:#?}", error_code, frame);
 }
 
 extern "x86-interrupt" fn x87_floating_point_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: x87 Floating Point\n{:#?}", frame);
+    panic!("EXCEPTION: x87 Floating Point\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn alignment_check_handler(frame: &mut idt::InterruptStackFrame, error_code: u64) {
-    warn!("EXCEPTION: Alignment Check with error code {}\n{:#?}", error_code, frame);
+    panic!("EXCEPTION: Alignment Check with error code {}\n{:#?}", error_code, frame);
 }
 
 extern "x86-interrupt" fn machine_check_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Machine Check\n{:#?}", frame);
+    panic!("EXCEPTION: Machine Check\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn simd_floating_point_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: SIMD Floating Point\n{:#?}", frame);
+    panic!("EXCEPTION: SIMD Floating Point\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn virtualization_handler(frame: &mut idt::InterruptStackFrame) {
-    warn!("EXCEPTION: Virtualization\n{:#?}", frame);
+    panic!("EXCEPTION: Virtualization\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn security_exception_handler(frame: &mut idt::InterruptStackFrame, error_code: u64) {
-    warn!("EXCEPTION: Security Exception with error code {}\n{:#?}", error_code, frame);
+    panic!("EXCEPTION: Security Exception with error code {}\n{:#?}", error_code, frame);
 }
