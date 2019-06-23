@@ -1,20 +1,19 @@
 use core::fmt;
-use ddos_ds::SpinLock;
+use ds::SpinLock;
 use lazy_static::lazy_static;
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
 
-use crate::serial;
-use core::borrow::{Borrow, BorrowMut};
+use crate::{
+    ransid::{self, State::RANSID_FGCOLOR},
+    serial,
+};
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
-pub use ransid;
-use crate::ransid::State;
 
-#[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum Color {
     Black = 0x00,
@@ -22,7 +21,7 @@ pub enum Color {
     Green = 0x02,
     Cyan = 0x03,
     Red = 0x04,
-    Magenta = 0x05,
+    Magent = 0x05,
     Brown = 0x06,
     LightGrey = 0x07,
     DarkGrey = 0x08,
@@ -30,7 +29,7 @@ pub enum Color {
     LightGreen = 0x0A,
     LightCyan = 0x0B,
     LightRed = 0x0C,
-    LightMagenta = 0x0D,
+    LightMagent = 0x0D,
     LightBrown = 0x0E,
     White = 0x0F,
 }
@@ -39,7 +38,6 @@ pub struct Writer {
     buf: &'static mut [Volatile<u16>],
     x: usize,
     y: usize,
-    color: ransid::Color_Char,
 }
 
 impl Writer {
@@ -96,21 +94,20 @@ impl Writer {
         }
     }
 
-    pub fn set_bgcolor()
-
     /// Write a byte to the screen, handles escape characters and updates
     /// positions.
     /// Returns position of most recently written character
-    pub fn write_byte(&mut self, ch: u8, cl: u8) -> u16 {
+    pub fn write_byte(&mut self, ch: u8) -> u16 {
         if self.handle_escapes(ch) {
             return 0;
         }
 
         self.handle_scrolling();
+
         // Actually write the character to the screen, escapes have been handled
         // previously no need to worry about those anymore.
         let pos: u16 = (self.y * WIDTH + self.x) as u16;
-        let byte: u16 = ((self.color as u16) << 8) | u16::from(ch);
+        let byte: u16 = ((Color::LightGreen as u16) << 8) | u16::from(ch);
         self.buf[self.y * WIDTH + self.x].write(byte);
 
         self.update_cursor_position();
@@ -191,11 +188,11 @@ fn disable_cursor() {
 
 lazy_static! {
     pub static ref WRITER: SpinLockWriter = SpinLockWriter(SpinLock::new(Writer {
-        buf: unsafe { core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25) },
+        buf: unsafe {
+            core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25)
+        },
         x: 0,
         y: 0,
-        bgcolor: Color::Black,
-        fgcolor: Color::LightGreen
     }));
 }
 

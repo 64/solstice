@@ -1,6 +1,8 @@
 #![no_std]
 #![feature(core_intrinsics)]
 
+pub mod ransid;
 pub mod serial;
 pub mod vga_text;
-pub mod ransid;
+
+extern crate solstice_ds as ds;
