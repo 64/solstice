@@ -7,8 +7,29 @@ use x86_64::instructions::port::{PortRead, PortWrite};
 
 use crate::serial;
 
+const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
+
+#[repr(u8)]
+enum Color {
+    Black = 0x00,
+    Blue = 0x01,
+    Green = 0x02,
+    Cyan = 0x03,
+    Red = 0x04,
+    Magent = 0x05,
+    Brown = 0x06,
+    LightGrey = 0x07,
+    DarkGrey = 0x08,
+    LightBlue = 0x09,
+    LightGreen = 0x0A,
+    LightCyan = 0x0B,
+    LightRed = 0x0C,
+    LightMagent = 0x0D,
+    LightBrown = 0x0E,
+    White = 0x0F,
+}
 
 pub struct Writer {
     buf: &'static mut [Volatile<u16>],
@@ -83,7 +104,8 @@ impl Writer {
         // Actually write the character to the screen, escapes have been handled
         // previously no need to worry about those anymore.
         let pos: u16 = (self.y * WIDTH + self.x) as u16;
-        self.buf[self.y * WIDTH + self.x].write((0x0B << 8) | u16::from(ch));
+        let byte: u16 = ((Color::LightGreen as u16) << 8) | u16::from(ch);
+        self.buf[self.y * WIDTH + self.x].write(byte);
 
         self.update_cursor_position();
 
@@ -139,14 +161,17 @@ fn update_cursor(pos: u16) {
 }
 
 fn enable_cursor() {
+    const BEGIN_SCANLINE: u16 = 0;
+    const END_SCANLINE: u16 = 15;
+
     unsafe {
         PortWrite::write_to_port(0x3D4 as u16, 0x0A as u8);
         let old: u16 = PortRead::read_from_port(0x3D5);
-        PortWrite::write_to_port(0x3D5 as u16, (old & 0xC0) as u8);
+        PortWrite::write_to_port(0x3D5 as u16, ((old & 0xC0) | BEGIN_SCANLINE) as u8);
 
         PortWrite::write_to_port(0x3D4 as u16, 0x0B as u8);
         let old: u16 = PortRead::read_from_port(0x3D5);
-        PortWrite::write_to_port(0x3D5 as u16, ((old & 0xE0) | 15) as u8);
+        PortWrite::write_to_port(0x3D5 as u16, ((old & 0xE0) | END_SCANLINE) as u8);
     }
 }
 
@@ -160,7 +185,7 @@ fn disable_cursor() {
 
 lazy_static! {
     pub static ref WRITER: SpinLockWriter = SpinLockWriter(SpinLock::new(Writer {
-        buf: unsafe { core::slice::from_raw_parts_mut(0xB8000 as *mut Volatile<u16>, 80 * 25) },
+        buf: unsafe { core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25) },
         x: 0,
         y: 0,
     }));
