@@ -5,14 +5,17 @@ use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
 
-use crate::serial;
+use crate::{
+    ransid::{self, State::RANSID_FGCOLOR},
+    serial,
+};
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
 
 #[repr(u8)]
-enum Color {
+pub enum Color {
     Black = 0x00,
     Blue = 0x01,
     Green = 0x02,
@@ -185,7 +188,9 @@ fn disable_cursor() {
 
 lazy_static! {
     pub static ref WRITER: SpinLockWriter = SpinLockWriter(SpinLock::new(Writer {
-        buf: unsafe { core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25) },
+        buf: unsafe {
+            core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25)
+        },
         x: 0,
         y: 0,
     }));
