@@ -236,7 +236,9 @@ macro_rules! dbg {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    WRITER.0.lock().write_fmt(args).unwrap();
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        WRITER.0.lock().write_fmt(args).unwrap()
+    });
 }
 
 impl Log for SpinLockWriter {
