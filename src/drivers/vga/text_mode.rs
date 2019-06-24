@@ -77,26 +77,26 @@ impl Writer {
     /// positions.
     /// Returns position of most recently written character
     pub fn write_byte(&mut self, ch: u8) -> u16 {
-        if self.handle_escapes(ch) {
-            return 0;
+        match self.state.ransid_process(ch) {
+            Some(char) => {
+                if self.handle_escapes(ch) {
+                    return 0;
+                }
+
+                self.handle_scrolling();
+
+                // Actually write the character to the screen, escapes have been handled
+                // previously no need to worry about those anymore.
+                let pos: u16 = (self.y * WIDTH + self.x) as u16;
+                let byte: u16 = ((char.style as u16) << 8) | u16::from(char.ascii);
+                self.buf[self.y * WIDTH + self.x].write(byte);
+
+                self.update_cursor_position();
+
+                pos
+            },
+            None => return 0,
         }
-
-        self.handle_scrolling();
-
-        let color_char = self.state.ransid_process(ch);
-        if color_char.ascii == b'\0' {
-            return 0;
-        }
-
-        // Actually write the character to the screen, escapes have been handled
-        // previously no need to worry about those anymore.
-        let pos: u16 = (self.y * WIDTH + self.x) as u16;
-        let byte: u16 = ((color_char.style as u16) << 8) | u16::from(color_char.ascii);
-        self.buf[self.y * WIDTH + self.x].write(byte);
-
-        self.update_cursor_position();
-
-        pos
     }
 
     pub fn write_string(&mut self, s: &str) {
