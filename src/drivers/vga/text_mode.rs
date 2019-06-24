@@ -6,32 +6,14 @@ use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
 
 use crate::drivers::serial;
+use crate::drivers::vga::ransid::RansidState;
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
 
-#[repr(u8)]
-pub enum Color {
-    Black = 0x00,
-    Blue = 0x01,
-    Green = 0x02,
-    Cyan = 0x03,
-    Red = 0x04,
-    Magenta = 0x05,
-    Brown = 0x06,
-    LightGrey = 0x07,
-    DarkGrey = 0x08,
-    LightBlue = 0x09,
-    LightGreen = 0x0A,
-    LightCyan = 0x0B,
-    LightRed = 0x0C,
-    LightMagenta = 0x0D,
-    LightBrown = 0x0E,
-    White = 0x0F,
-}
-
 pub struct Writer {
+    state: RansidState,
     buf: &'static mut [Volatile<u16>],
     x: usize,
     y: usize,
@@ -101,10 +83,15 @@ impl Writer {
 
         self.handle_scrolling();
 
+        let color_char = self.state.ransid_process(ch);
+        if color_char.ascii == b'\0' {
+            return 0;
+        }
+
         // Actually write the character to the screen, escapes have been handled
         // previously no need to worry about those anymore.
         let pos: u16 = (self.y * WIDTH + self.x) as u16;
-        let byte: u16 = ((Color::LightGreen as u16) << 8) | u16::from(ch);
+        let byte: u16 = ((color_char.style as u16) << 8) | u16::from(color_char.ascii);
         self.buf[self.y * WIDTH + self.x].write(byte);
 
         self.update_cursor_position();
@@ -185,6 +172,7 @@ fn disable_cursor() {
 
 lazy_static! {
     pub static ref WRITER: SpinLockWriter = SpinLockWriter(SpinLock::new(Writer {
+        state: RansidState::new(),
         buf: unsafe {
             core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25)
         },

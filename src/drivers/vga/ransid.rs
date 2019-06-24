@@ -27,6 +27,14 @@ fn convert_color(color: u8) -> u8 {
 }
 
 impl RansidState {
+    pub fn new() -> Self {
+        Self {
+            state: State::Esc,
+            style: 0x02,
+            next_style: 0x02,
+        }
+    }
+
     pub fn ransid_process(&mut self, x: u8) -> ColorChar {
         let mut rv = ColorChar {
             style: self.style,

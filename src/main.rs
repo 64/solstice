@@ -38,7 +38,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
 
-    info!("nothing to do, halting...");
+    info!("nothing to do, \x1B[31mhalting...");
 
     loop {
         // x86_64::instructions::interrupts::enable();
