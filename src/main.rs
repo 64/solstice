@@ -57,8 +57,8 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 fn abort() -> ! {
-    x86_64::instructions::interrupts::disable();
     loop {
+        x86_64::instructions::interrupts::disable();
         x86_64::instructions::hlt();
     }
 }
