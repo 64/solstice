@@ -1,5 +1,4 @@
 const ESC: u8 = b'\x1B';
-pub const DEFAULT_STATE: &str = "\x1B[1;37;40m";
 
 pub enum State {
     Esc,
@@ -62,7 +61,7 @@ impl RansidState {
             next_style: 0,
         };
 
-        for ch in DEFAULT_STATE.chars() {
+        for ch in "\x1B[0m".chars() {
             state.ransid_process(ch as u8);
         }
 

@@ -6,7 +6,7 @@ use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
 
 use crate::drivers::serial;
-use crate::drivers::vga::ransid::{RansidState, DEFAULT_STATE};
+use crate::drivers::vga::ransid::RansidState;
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
@@ -241,7 +241,7 @@ impl Log for SpinLockWriter {
                 Level::Debug => "\x1B[36m",
                 Level::Trace => "\x1B[35m",
             };
-            println!("[{}{}{}] {}", color, record.level(), DEFAULT_STATE, record.args());
+            println!("[{}{}{}] {}", color, record.level(), "\x1B[0m", record.args());
         }
     }
 
