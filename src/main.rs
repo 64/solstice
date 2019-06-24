@@ -38,6 +38,10 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     #[cfg(test)]
     test_main();
 
+    dbg!("This is a dbg");
+    warn!("This is a warning");
+    trace!();
+
     info!("nothing to do, \x1B[31mhalting...");
 
     loop {

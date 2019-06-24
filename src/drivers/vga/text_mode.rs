@@ -1,12 +1,12 @@
 use crate::ds::SpinLock;
 use core::fmt;
 use lazy_static::lazy_static;
-use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
+use log::{LevelFilter, Log, Metadata, Record, SetLoggerError, Level};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
 
 use crate::drivers::serial;
-use crate::drivers::vga::ransid::RansidState;
+use crate::drivers::vga::ransid::{RansidState, default_style};
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
@@ -234,8 +234,14 @@ impl Log for SpinLockWriter {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            // TODO: Color
-            println!("[{}] {}", record.level(), record.args());
+            let color = match record.level() {
+                Level::Info => "\x1B[32m",
+                Level::Error => "\x1B[31m",
+                Level::Warn => "\x1B[33m",
+                Level::Debug => "\x1B[36m",
+                Level::Trace => "\x1B[35m",
+            };
+            println!("[{}{}{}] {}", color, record.level(), default_style, record.args());
         }
     }
 

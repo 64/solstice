@@ -1,4 +1,5 @@
 const ESC: u8 = b'\x1B';
+pub const default_style: &str = "\x1B[1;37;40m";
 
 pub enum State {
     Esc,
@@ -55,12 +56,17 @@ fn convert_color(color: u8) -> u8 {
 
 impl RansidState {
     pub fn new() -> Self {
-        let default_style = create_style(Color::Black, Color::White);
-        Self {
+        let mut state = Self {
             state: State::Esc,
-            style: default_style,
-            next_style: default_style,
+            style: 0,
+            next_style: 0,
+        };
+
+        for ch in default_style.chars() {
+            state.ransid_process(ch as u8);
         }
+
+        state
     }
 
     pub fn ransid_process(&mut self, x: u8) -> Option<ColorChar> {
