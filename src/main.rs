@@ -26,10 +26,13 @@ mod qemu;
 
 #[allow(unused_imports)]
 use core::panic::PanicInfo;
+use bootloader::BootInfo;
 
 #[no_mangle]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     kernel::kernel_main();
+
+    info!("Physical memory offset: 0x{:x}", boot_info.physical_memory_offset);
 
     // Run tests
     #[cfg(test)]
