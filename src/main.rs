@@ -40,10 +40,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     info!("nothing to do, halting...");
 
-    loop {
-        // x86_64::instructions::interrupts::enable();
-        x86_64::instructions::hlt();
-    }
+    abort();
 }
 
 #[panic_handler]
@@ -55,6 +52,13 @@ fn panic(info: &PanicInfo) -> ! {
     // Halt CPU
     loop {
         x86_64::instructions::interrupts::disable();
+        x86_64::instructions::hlt();
+    }
+}
+
+fn abort() -> ! {
+    x86_64::instructions::interrupts::disable();
+    loop {
         x86_64::instructions::hlt();
     }
 }
