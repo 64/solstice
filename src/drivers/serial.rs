@@ -30,7 +30,7 @@ fn write_byte(ch: u8) {
     }
 }
 
-pub fn write_string(s: &str) {
+pub fn write_str(s: &str) {
     for byte in s.bytes() {
         write_byte(byte);
     }

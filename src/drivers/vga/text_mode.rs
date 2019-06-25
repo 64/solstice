@@ -1,12 +1,8 @@
-use crate::ds::SpinLock;
-use core::fmt;
-use lazy_static::lazy_static;
-use log::{LevelFilter, Log, Metadata, Record, SetLoggerError, Level};
+use log::{LevelFilter, SetLoggerError};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
 
-use crate::drivers::serial;
-use crate::drivers::vga::ransid::RansidState;
+use crate::{drivers::vga::ransid::RansidState, macros};
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
@@ -36,7 +32,7 @@ impl Writer {
                 true
             }
             b'\t' => {
-                self.write_string("    ");
+                self.write_str("    ");
                 true
             }
             _ => false,
@@ -94,16 +90,12 @@ impl Writer {
                 self.update_cursor_position();
 
                 pos
-            },
+            }
             None => return 0,
         }
     }
 
-    pub fn write_string(&mut self, s: &str) {
-        // If dbg, write string to serial port first
-        #[cfg(debug_assertions)]
-        serial::write_string(s);
-
+    pub fn write_str(&mut self, s: &str) {
         let mut pos: u16 = 0;
         for byte in s.bytes() {
             // TODO: Handle non-ascii chars
@@ -116,20 +108,23 @@ impl Writer {
     }
 }
 
-// Everything below here is just glue for the 'println!, print!, info!, debug!,
-// error!, warn!' macros
-
-// Need a separate struct so we can implement Log trait
-pub struct SpinLockWriter(SpinLock<Writer>);
+impl Default for Writer {
+    fn default() -> Self {
+        Writer {
+            state: RansidState::new(),
+            buf: unsafe {
+                core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25)
+            },
+            x: 0,
+            y: 0,
+        }
+    }
+}
 
 pub fn init() -> Result<(), SetLoggerError> {
-    // TODO: Refactor this into separate module (how about vga/mod.rs)
-    #[cfg(debug_assertions)]
-    serial::init();
-
     enable_cursor();
 
-    log::set_logger(&*WRITER).map(|()| {
+    log::set_logger(&*macros::SCREEN).map(|()| {
         #[cfg(debug_assertions)]
         log::set_max_level(LevelFilter::Debug);
 
@@ -168,84 +163,4 @@ fn disable_cursor() {
         PortWrite::write_to_port(0x3D4 as u16, 0x0A as u8);
         PortWrite::write_to_port(0x3D5 as u16, 0x20 as u8);
     }
-}
-
-lazy_static! {
-    pub static ref WRITER: SpinLockWriter = SpinLockWriter(SpinLock::new(Writer {
-        state: RansidState::new(),
-        buf: unsafe {
-            core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25)
-        },
-        x: 0,
-        y: 0,
-    }));
-}
-
-impl fmt::Write for Writer {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.write_string(s);
-        Ok(())
-    }
-}
-
-macro_rules! print {
-    ($($arg:tt)*) => ($crate::drivers::vga::text_mode::_print(format_args!($($arg)*)));
-}
-
-macro_rules! println {
-    () => (print!("\n"));
-    ($($arg:tt)*) => (print!("{}\n", format_args!($($arg)*)));
-}
-
-// Lifted from standard library
-#[allow(unused_macros)]
-macro_rules! dbg {
-    () => {
-        println!("[DEBUG {}:{}]", file!(), line!());
-    };
-    ($val:expr) => {
-        // Use of `match` here is intentional because it affects the lifetimes
-        // of temporaries - https://stackoverflow.com/a/48732525/1063961
-        match $val {
-            tmp => {
-                println!(
-                    "[DEBUG {}:{}] {} = {:#?}",
-                    file!(),
-                    line!(),
-                    stringify!($val),
-                    &tmp
-                );
-                tmp
-            }
-        }
-    };
-}
-
-#[doc(hidden)]
-pub fn _print(args: fmt::Arguments) {
-    use core::fmt::Write;
-    x86_64::instructions::interrupts::without_interrupts(|| {
-        WRITER.0.lock().write_fmt(args).unwrap()
-    });
-}
-
-impl Log for SpinLockWriter {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() <= log::max_level()
-    }
-
-    fn log(&self, record: &Record) {
-        if self.enabled(record.metadata()) {
-            let color = match record.level() {
-                Level::Info => "\x1B[32m",
-                Level::Error => "\x1B[31m",
-                Level::Warn => "\x1B[33m",
-                Level::Debug => "\x1B[36m",
-                Level::Trace => "\x1B[35m",
-            };
-            println!("[{}{}{}] {}", color, record.level(), "\x1B[0m", record.args());
-        }
-    }
-
-    fn flush(&self) {}
 }

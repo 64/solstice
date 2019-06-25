@@ -3,6 +3,7 @@ use crate::cpu;
 use crate::drivers;
 
 pub fn kernel_main() {
+    drivers::serial::init();
     drivers::vga::text_mode::init().unwrap();
 
     println!("  _____       _     _   _             Join us at discord.gg/vnyVmAE");

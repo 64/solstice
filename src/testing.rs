@@ -23,17 +23,6 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
     qemu::exit(qemu::ExitCode::Success);
 }
 
-macro_rules! test_case {
-    ($test_name:ident, $body:expr) => {
-        #[test_case]
-        fn $test_name() {
-            print!("{}::{}... ", module_path!(), stringify!($test_name));
-            $body;
-            println!("[ok]");
-        }
-    };
-}
-
 // Example test
 test_case!(basic_test, {
     assert_eq!(1, 1);

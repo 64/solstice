@@ -12,27 +12,27 @@
 extern crate log;
 
 #[macro_use]
-mod drivers;
-
-// TODO: Ideally put this above drivers so we can test that too
-// Would require moving println et al out of the drivers module
-#[macro_use]
-mod testing;
+mod macros;
 
 mod cpu;
+mod drivers;
 mod ds;
+mod testing;
 mod kernel;
 mod qemu;
 
+use bootloader::BootInfo;
 #[allow(unused_imports)]
 use core::panic::PanicInfo;
-use bootloader::BootInfo;
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     kernel::kernel_main();
 
-    info!("Physical memory offset: 0x{:x}", boot_info.physical_memory_offset);
+    info!(
+        "Physical memory offset: 0x{:x}",
+        boot_info.physical_memory_offset
+    );
 
     // Run tests
     #[cfg(test)]
