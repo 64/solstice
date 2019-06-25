@@ -1,37 +1,19 @@
 use crate::ds::SpinLock;
 use core::fmt;
 use lazy_static::lazy_static;
-use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
+use log::{LevelFilter, Log, Metadata, Record, SetLoggerError, Level};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
 
 use crate::drivers::serial;
+use crate::drivers::vga::ransid::RansidState;
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
 
-#[repr(u8)]
-pub enum Color {
-    Black = 0x00,
-    Blue = 0x01,
-    Green = 0x02,
-    Cyan = 0x03,
-    Red = 0x04,
-    Magenta = 0x05,
-    Brown = 0x06,
-    LightGrey = 0x07,
-    DarkGrey = 0x08,
-    LightBlue = 0x09,
-    LightGreen = 0x0A,
-    LightCyan = 0x0B,
-    LightRed = 0x0C,
-    LightMagenta = 0x0D,
-    LightBrown = 0x0E,
-    White = 0x0F,
-}
-
 pub struct Writer {
+    state: RansidState,
     buf: &'static mut [Volatile<u16>],
     x: usize,
     y: usize,
@@ -95,21 +77,26 @@ impl Writer {
     /// positions.
     /// Returns position of most recently written character
     pub fn write_byte(&mut self, ch: u8) -> u16 {
-        if self.handle_escapes(ch) {
-            return 0;
+        match self.state.ransid_process(ch) {
+            Some(char) => {
+                if self.handle_escapes(ch) {
+                    return 0;
+                }
+
+                self.handle_scrolling();
+
+                // Actually write the character to the screen, escapes have been handled
+                // previously no need to worry about those anymore.
+                let pos: u16 = (self.y * WIDTH + self.x) as u16;
+                let byte: u16 = ((char.style as u16) << 8) | u16::from(char.ascii);
+                self.buf[self.y * WIDTH + self.x].write(byte);
+
+                self.update_cursor_position();
+
+                pos
+            },
+            None => return 0,
         }
-
-        self.handle_scrolling();
-
-        // Actually write the character to the screen, escapes have been handled
-        // previously no need to worry about those anymore.
-        let pos: u16 = (self.y * WIDTH + self.x) as u16;
-        let byte: u16 = ((Color::LightGreen as u16) << 8) | u16::from(ch);
-        self.buf[self.y * WIDTH + self.x].write(byte);
-
-        self.update_cursor_position();
-
-        pos
     }
 
     pub fn write_string(&mut self, s: &str) {
@@ -185,6 +172,7 @@ fn disable_cursor() {
 
 lazy_static! {
     pub static ref WRITER: SpinLockWriter = SpinLockWriter(SpinLock::new(Writer {
+        state: RansidState::new(),
         buf: unsafe {
             core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25)
         },
@@ -248,8 +236,14 @@ impl Log for SpinLockWriter {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            // TODO: Color
-            println!("[{}] {}", record.level(), record.args());
+            let color = match record.level() {
+                Level::Info => "\x1B[32m",
+                Level::Error => "\x1B[31m",
+                Level::Warn => "\x1B[33m",
+                Level::Debug => "\x1B[36m",
+                Level::Trace => "\x1B[35m",
+            };
+            println!("[{}{}{}] {}", color, record.level(), "\x1B[0m", record.args());
         }
     }
 

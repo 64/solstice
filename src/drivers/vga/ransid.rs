@@ -10,6 +10,27 @@ pub enum State {
     EndVal,
 }
 
+#[repr(u8)]
+#[allow(unused)]
+enum Color {
+    Black = 0x00,
+    Blue = 0x01,
+    Green = 0x02,
+    Cyan = 0x03,
+    Red = 0x04,
+    Magenta = 0x05,
+    Brown = 0x06,
+    LightGrey = 0x07,
+    DarkGrey = 0x08,
+    LightBlue = 0x09,
+    LightGreen = 0x0A,
+    LightCyan = 0x0B,
+    LightRed = 0x0C,
+    LightMagenta = 0x0D,
+    LightBrown = 0x0E,
+    White = 0x0F,
+}
+
 pub struct RansidState {
     pub state: State,
     pub style: u8,
@@ -21,13 +42,33 @@ pub struct ColorChar {
     pub ascii: u8,
 }
 
+fn create_style(bg: Color, fg: Color) -> u8 {
+    let background = (bg as u8) << 4u8;
+    let forground = fg as u8;
+    background | forground
+}
+
 fn convert_color(color: u8) -> u8 {
     let lookup_table: [u8; 8] = [0, 4, 2, 6, 1, 5, 3, 7];
     lookup_table[color as usize]
 }
 
 impl RansidState {
-    pub fn ransid_process(&mut self, x: u8) -> ColorChar {
+    pub fn new() -> Self {
+        let mut state = Self {
+            state: State::Esc,
+            style: 0,
+            next_style: 0,
+        };
+
+        for ch in "\x1B[0m".chars() {
+            state.ransid_process(ch as u8);
+        }
+
+        state
+    }
+
+    pub fn ransid_process(&mut self, x: u8) -> Option<ColorChar> {
         let mut rv = ColorChar {
             style: self.style,
             ascii: b'\0',
@@ -112,6 +153,9 @@ impl RansidState {
             }
         };
 
-        rv
+        match rv.ascii {
+            b'\0' => None,
+            _ => Some(rv),
+        }
     }
 }
