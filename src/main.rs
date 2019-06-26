@@ -19,6 +19,7 @@ mod drivers;
 mod ds;
 mod testing;
 mod kernel;
+mod mem;
 mod qemu;
 
 use bootloader::BootInfo;
@@ -60,12 +61,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 #[allow(clippy::empty_loop)]
 fn panic(info: &PanicInfo) -> ! {
     error!("{}", info);
-
-    // Halt CPU
-    loop {
-        x86_64::instructions::interrupts::disable();
-        x86_64::instructions::hlt();
-    }
+    abort();
 }
 
 fn abort() -> ! {
