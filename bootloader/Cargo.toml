@@ -1,0 +1,43 @@
+[package]
+name = "bootloader"
+version = "0.6.1"
+authors = ["Philipp Oppermann <dev@phil-opp.com>"]
+license = "MIT/Apache-2.0"
+description = "An experimental pure-Rust x86 bootloader."
+repository = "https://github.com/rust-osdev/bootloader"
+edition = "2018"
+build = "build.rs"
+
+[dependencies]
+xmas-elf = "0.6.2"
+x86_64 = "0.3.5"
+usize_conversions = "0.2.0"
+fixedvec = "0.2.3"
+
+[dependencies.font8x8]
+version = "0.2.4"
+default-features = false
+features = ["unicode"]
+
+[build-dependencies]
+llvm-tools = "0.1"
+
+[features]
+default = []
+vga_320x200 = []
+recursive_page_table = []
+map_physical_memory = []
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = false
+debug = true
+
+[package.metadata.bootloader]
+target = "x86_64-bootloader.json"
+
+[package.metadata.docs.rs]
+features = [ "recursive_page_table", "map_physical_memory" ]
