@@ -1,7 +1,6 @@
 use log::{LevelFilter, SetLoggerError};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
-
 use crate::{drivers::vga::ransid::RansidState, macros};
 
 const TERMINAL_BUFFER: usize = 0xB8000;
@@ -48,10 +47,18 @@ impl Writer {
         }
 
         unsafe {
+            // Moves old memory up
             core::intrinsics::volatile_copy_memory(
                 self.buf.as_mut_ptr(),
                 self.buf[WIDTH..].as_mut_ptr(),
                 WIDTH * (HEIGHT - 1),
+            );
+
+            // Clears bottom row
+            core::intrinsics::volatile_set_memory(
+                self.buf[(WIDTH * (HEIGHT - 1))..].as_mut_ptr(),
+                0,
+                WIDTH,
             );
         }
 
