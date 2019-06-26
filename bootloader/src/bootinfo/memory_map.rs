@@ -1,5 +1,7 @@
-use core::fmt;
-use core::ops::{Deref, DerefMut};
+use core::{
+    fmt,
+    ops::{Deref, DerefMut},
+};
 
 const PAGE_SIZE: u64 = 4096;
 
@@ -114,13 +116,14 @@ impl MemoryRegion {
 pub struct FrameRange {
     /// The frame _number_ of the first 4KiB frame in the region.
     ///
-    /// This convert this frame number to a physical address, multiply it with the
-    /// page size (4KiB).
+    /// This convert this frame number to a physical address, multiply it with
+    /// the page size (4KiB).
     pub start_frame_number: u64,
-    /// The frame _number_ of the first 4KiB frame that does no longer belong to the region.
+    /// The frame _number_ of the first 4KiB frame that does no longer belong to
+    /// the region.
     ///
-    /// This convert this frame number to a physical address, multiply it with the
-    /// page size (4KiB).
+    /// This convert this frame number to a physical address, multiply it with
+    /// the page size (4KiB).
     pub end_frame_number: u64,
 }
 
@@ -189,7 +192,8 @@ pub enum MemoryRegionType {
     Bootloader,
     /// Frame at address zero.
     ///
-    /// (shouldn't be used because it's easy to make mistakes related to null pointers)
+    /// (shouldn't be used because it's easy to make mistakes related to null
+    /// pointers)
     FrameZero,
     /// An empty region with size 0
     Empty,
@@ -197,8 +201,8 @@ pub enum MemoryRegionType {
     BootInfo,
     /// Memory used for storing the supplied package
     Package,
-    /// Additional variant to ensure that we can add more variants in the future without
-    /// breaking backwards compatibility.
+    /// Additional variant to ensure that we can add more variants in the future
+    /// without breaking backwards compatibility.
     #[doc(hidden)]
     NonExhaustive,
 }

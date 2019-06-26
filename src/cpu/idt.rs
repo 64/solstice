@@ -34,6 +34,10 @@ pub fn load() {
     info!("IDT loaded");
 }
 
+test_case!(int3_handler, {
+    x86_64::instructions::interrupts::int3();
+});
+
 extern "x86-interrupt" fn divide_by_zero_handler(frame: &mut idt::InterruptStackFrame) {
     panic!("EXCEPTION: Zero Division\n{:#?}", frame);
 }
@@ -47,7 +51,7 @@ extern "x86-interrupt" fn non_maskable_interrupt_handler(frame: &mut idt::Interr
 }
 
 extern "x86-interrupt" fn breakpoint_handler(frame: &mut idt::InterruptStackFrame) {
-    panic!("EXCEPTION: Breakpoint\n{:#?}", frame);
+    trace!("EXCEPTION: Breakpoint\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn overflow_handler(frame: &mut idt::InterruptStackFrame) {

@@ -1,6 +1,8 @@
-use core::fmt::{Result, Write};
-use core::slice;
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::{
+    fmt::{Result, Write},
+    slice,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 const VGA_BUFFER: *mut u8 = 0xa0000 as *mut _;
 const SCREEN_WIDTH: usize = 320;

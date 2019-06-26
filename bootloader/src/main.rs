@@ -11,16 +11,24 @@
 compile_error!("The bootloader crate must be compiled for the `x86_64-bootloader.json` target");
 
 use bootloader::bootinfo::{BootInfo, FrameRange};
-use core::panic::PanicInfo;
-use core::{mem, slice};
+use core::{mem, panic::PanicInfo, slice};
 use fixedvec::alloc_stack;
 use usize_conversions::usize_from;
-use x86_64::structures::paging::{Mapper, RecursivePageTable};
-use x86_64::structures::paging::{
-    Page, PageTableFlags, PhysFrame, PhysFrameRange, Size2MiB, Size4KiB,
+use x86_64::{
+    structures::paging::{
+        frame::PhysFrameRange,
+        Mapper,
+        Page,
+        PageTableFlags,
+        PhysFrame,
+        RecursivePageTable,
+        Size2MiB,
+        Size4KiB,
+    },
+    ux::u9,
+    PhysAddr,
+    VirtAddr,
 };
-use x86_64::ux::u9;
-use x86_64::{PhysAddr, VirtAddr};
 
 const PHYSICAL_MEMORY_OFFSET: u64 = 0xFFFF800000000000;
 
@@ -151,7 +159,7 @@ fn load_elf(
     enable_nxe_bit();
 
     // Create a RecursivePageTable
-    let recursive_index = u9::new(511);
+    let recursive_index = u9::new(100);
     let recursive_page_table_addr = Page::from_page_table_indices(
         recursive_index,
         recursive_index,
@@ -163,7 +171,8 @@ fn load_elf(
     let mut rec_page_table =
         RecursivePageTable::new(page_table).expect("recursive page table creation failed");
 
-    // Create a frame allocator, which marks allocated frames as used in the memory map.
+    // Create a frame allocator, which marks allocated frames as used in the memory
+    // map.
     let mut frame_allocator = frame_allocator::FrameAllocator {
         memory_map: &mut memory_map,
     };
@@ -209,6 +218,26 @@ fn load_elf(
         rec_page_table.unmap(page).expect("dealloc error").1.flush();
     }
 
+    fn virt_for_phys(phys: PhysAddr) -> VirtAddr {
+        VirtAddr::new(phys.as_u64() + PHYSICAL_MEMORY_OFFSET)
+    }
+
+    let start_frame = PhysFrame::<Size2MiB>::containing_address(PhysAddr::new(0));
+    let end_frame = PhysFrame::<Size2MiB>::containing_address(PhysAddr::new(max_phys_addr));
+    for frame in PhysFrame::range_inclusive(start_frame, end_frame) {
+        let page = Page::containing_address(virt_for_phys(frame.start_address()));
+        let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+        page_table::map_page(
+            page,
+            frame,
+            flags,
+            &mut rec_page_table,
+            &mut frame_allocator,
+        )
+        .expect("Mapping of phys mem failed")
+        .flush();
+    }
+
     // Map kernel segments.
     let stack_end = page_table::map_kernel(
         kernel_start.phys(),
@@ -237,28 +266,6 @@ fn load_elf(
         page
     };
 
-    if cfg!(feature = "map_physical_memory") {
-        fn virt_for_phys(phys: PhysAddr) -> VirtAddr {
-            VirtAddr::new(phys.as_u64() + PHYSICAL_MEMORY_OFFSET)
-        }
-
-        let start_frame = PhysFrame::<Size2MiB>::containing_address(PhysAddr::new(0));
-        let end_frame = PhysFrame::<Size2MiB>::containing_address(PhysAddr::new(max_phys_addr));
-        for frame in PhysFrame::range_inclusive(start_frame, end_frame) {
-            let page = Page::containing_address(virt_for_phys(frame.start_address()));
-            let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-            page_table::map_page(
-                page,
-                frame,
-                flags,
-                &mut rec_page_table,
-                &mut frame_allocator,
-            )
-            .expect("Mapping of bootinfo page failed")
-            .flush();
-        }
-    }
-
     // Construct boot info structure.
     let mut boot_info = BootInfo::new(
         memory_map,
@@ -271,7 +278,8 @@ fn load_elf(
     let boot_info_addr = boot_info_page.start_address();
     unsafe { boot_info_addr.as_mut_ptr::<BootInfo>().write(boot_info) };
 
-    // Make sure that the kernel respects the write-protection bits, even when in ring 0.
+    // Make sure that the kernel respects the write-protection bits, even when in
+    // ring 0.
     enable_write_protect_bit();
 
     if cfg!(not(feature = "recursive_page_table")) {
