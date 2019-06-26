@@ -34,13 +34,6 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
         boot_info.physical_memory_offset
     );
 
-    fn stack_overflow() {
-        stack_overflow(); // for each recursion, the return address is pushed
-    }
-
-    // trigger a stack overflow
-    stack_overflow();
-
     // Run tests
     #[cfg(test)]
     test_main();
