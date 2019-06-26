@@ -1,6 +1,7 @@
 #![rustfmt::skip]
 use lazy_static::lazy_static;
 use x86_64::structures::idt;
+use crate::cpu::gdt::DOUBLE_FAULT_IST_INDEX;
 
 lazy_static! {
     static ref IDT: idt::InterruptDescriptorTable = {
@@ -13,7 +14,7 @@ lazy_static! {
         idt.bound_range_exceeded.set_handler_fn(bound_range_exceeded_handler);
         idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
         idt.device_not_available.set_handler_fn(device_not_available_handler);
-        idt.double_fault.set_handler_fn(double_fault_handler);
+        unsafe { idt.double_fault.set_handler_fn(double_fault_handler).set_stack_index(DOUBLE_FAULT_IST_INDEX); }
         idt.invalid_tss.set_handler_fn(invalid_tss_handler);
         idt.segment_not_present.set_handler_fn(segment_not_present_handler);
         idt.stack_segment_fault.set_handler_fn(stack_segment_fault_handler);
