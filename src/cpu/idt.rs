@@ -1,7 +1,7 @@
 #![rustfmt::skip]
 use lazy_static::lazy_static;
 use x86_64::structures::idt;
-
+use crate::drivers::keyboard::keyboard_interrupt_handler;
 lazy_static! {
     static ref IDT: idt::InterruptDescriptorTable = {
         let mut idt = idt::InterruptDescriptorTable::new();
@@ -25,6 +25,7 @@ lazy_static! {
         idt.simd_floating_point.set_handler_fn(simd_floating_point_handler);
         idt.virtualization.set_handler_fn(virtualization_handler);
         idt.security_exception.set_handler_fn(security_exception_handler);
+        idt[33].set_handler_fn(keyboard_interrupt_handler);
         idt
     };
 }

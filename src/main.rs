@@ -39,7 +39,6 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     test_main();
 
     info!("nothing to do, halting...");
-
     abort();
 }
 
