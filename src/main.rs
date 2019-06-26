@@ -19,11 +19,13 @@ mod drivers;
 mod ds;
 mod testing;
 mod kernel;
+mod mem;
 mod qemu;
 
 use bootloader::BootInfo;
 #[allow(unused_imports)]
 use core::panic::PanicInfo;
+use core::ops::Deref;
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
@@ -33,6 +35,10 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
         "Physical memory offset: 0x{:x}",
         boot_info.physical_memory_offset
     );
+
+//    for reg in boot_info.memory_map.deref() {
+//        info!("Type: {:#?}, Start: {:#X}", reg.region_type, reg.range.start_addr());
+//    }
 
     // Run tests
     #[cfg(test)]
