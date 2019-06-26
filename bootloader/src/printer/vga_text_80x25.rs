@@ -1,6 +1,8 @@
-use core::fmt::{Result, Write};
-use core::slice;
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::{
+    fmt::{Result, Write},
+    slice,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 const VGA_BUFFER: *mut u8 = 0xb8000 as *mut _;
 const SCREEN_SIZE: usize = 80 * 25;
@@ -28,6 +30,9 @@ impl Write for Printer {
         let vga_buffer = Self::vga_buffer();
         for byte in s.bytes() {
             let index = CURRENT_OFFSET.fetch_add(2, Ordering::Relaxed);
+            if index > 80 * 24 {
+                self.clear_screen();
+            }
             vga_buffer[index] = byte;
             vga_buffer[index + 1] = 0x4f;
         }

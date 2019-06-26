@@ -1,4 +1,5 @@
-//! This library part of the bootloader allows kernels to retrieve information from the bootloader.
+//! This library part of the bootloader allows kernels to retrieve information
+//! from the bootloader.
 //!
 //! To combine your kernel with the bootloader crate you need a tool such
 //! as [`bootimage`](https://github.com/rust-osdev/bootimage). See the
@@ -16,9 +17,10 @@ pub mod bootinfo;
 ///
 /// The function must have the signature `fn(&'static BootInfo) -> !`.
 ///
-/// This macro just creates a function named `_start`, which the linker will use as the entry
-/// point. The advantage of using this macro instead of providing an own `_start` function is
-/// that the macro ensures that the function and argument types are correct.
+/// This macro just creates a function named `_start`, which the linker will use
+/// as the entry point. The advantage of using this macro instead of providing
+/// an own `_start` function is that the macro ensures that the function and
+/// argument types are correct.
 #[macro_export]
 macro_rules! entry_point {
     ($path:path) => {

@@ -1,6 +1,6 @@
 use super::{frame_range, phys_frame_range};
 use bootloader::bootinfo::{MemoryMap, MemoryRegion, MemoryRegionType};
-use x86_64::structures::paging::{PhysFrame, PhysFrameRange};
+use x86_64::structures::paging::{frame::PhysFrameRange, PhysFrame};
 
 pub(crate) struct FrameAllocator<'a> {
     pub memory_map: &'a mut MemoryMap,
@@ -65,7 +65,8 @@ impl<'a> FrameAllocator<'a> {
 
     /// Marks the passed region in the memory map.
     ///
-    /// Panics if a non-usable region (e.g. a reserved region) overlaps with the passed region.
+    /// Panics if a non-usable region (e.g. a reserved region) overlaps with the
+    /// passed region.
     pub(crate) fn mark_allocated_region(&mut self, region: MemoryRegion) {
         for r in self.memory_map.iter_mut() {
             if region.range.start_frame_number >= r.range.end_frame_number {

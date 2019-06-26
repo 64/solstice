@@ -25,20 +25,27 @@ mod qemu;
 use bootloader::BootInfo;
 #[allow(unused_imports)]
 use core::panic::PanicInfo;
-use core::ops::Deref;
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     kernel::kernel_main();
 
     info!(
-        "Physical memory offset: 0x{:x}",
+        "Physical memory offset: {:#x}",
         boot_info.physical_memory_offset
     );
 
-//    for reg in boot_info.memory_map.deref() {
-//        info!("Type: {:#?}, Start: {:#X}", reg.region_type, reg.range.start_addr());
-//    }
+    let rip: u64;
+    unsafe { asm!("lea (%rip), $0" : "=r"(rip) ::: "volatile") };
+    info!("Executing at {:#x}", rip);
+
+    let rsp: u64;
+    unsafe { asm!("mov %rsp, $0" : "=r"(rsp) ::: "volatile") };
+    info!("Stack at {:#x}", rsp);
+
+    for entry in boot_info.memory_map.iter() {
+        debug!("{:?}, {:?}", entry.range, entry.region_type);
+    }
 
     // Run tests
     #[cfg(test)]
@@ -54,12 +61,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 #[allow(clippy::empty_loop)]
 fn panic(info: &PanicInfo) -> ! {
     error!("{}", info);
-
-    // Halt CPU
-    loop {
-        x86_64::instructions::interrupts::disable();
-        x86_64::instructions::hlt();
-    }
+    abort();
 }
 
 fn abort() -> ! {

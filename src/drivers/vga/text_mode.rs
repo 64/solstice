@@ -1,7 +1,7 @@
+use crate::{drivers::vga::ransid::RansidState, macros};
 use log::{LevelFilter, SetLoggerError};
 use volatile::Volatile;
 use x86_64::instructions::port::{PortRead, PortWrite};
-use crate::{drivers::vga::ransid::RansidState, macros};
 
 const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;

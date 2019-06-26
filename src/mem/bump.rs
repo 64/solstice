@@ -1,5 +1,5 @@
-use bootloader::bootinfo;
 use bootinfo::{MemoryRegion, MemoryRegionType};
+use bootloader::bootinfo;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Region {
@@ -19,10 +19,7 @@ pub struct BumpAllocator {
 
 impl Region {
     pub fn new() -> Self {
-        Self {
-            addr: 0,
-            size: 0,
-        }
+        Self { addr: 0, size: 0 }
     }
 }
 
@@ -39,7 +36,8 @@ impl BumpAllocator {
         for reg in mem_map {
             if reg.region_type == MemoryRegionType::Usable {
                 bump.regions[index].addr = reg.range.start_addr() as usize;
-                bump.regions[index].size = reg.range.end_addr() as usize - reg.range.start_addr() as usize;
+                bump.regions[index].size =
+                    reg.range.end_addr() as usize - reg.range.start_addr() as usize;
                 bump.region_count += 1;
                 index += 1;
             }
@@ -47,7 +45,7 @@ impl BumpAllocator {
 
         // index will be 0 if no usable memory region is found
         if index == 0 {
-            return None
+            return None;
         } else {
             return Some(bump);
         }

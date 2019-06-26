@@ -19,9 +19,9 @@ fn main() {
         Ok(kernel) => kernel,
         Err(_) => {
             eprintln!(
-                "The KERNEL environment variable must be set for building the bootloader.\n\n\
-                 If you use `bootimage` for building you need at least version 0.7.0. You can \
-                 update `bootimage` by running `cargo install bootimage --force`."
+                "The KERNEL environment variable must be set for building the bootloader.\n\nIf \
+                 you use `bootimage` for building you need at least version 0.7.0. You can update \
+                 `bootimage` by running `cargo install bootimage --force`."
             );
             process::exit(1);
         }
@@ -66,8 +66,11 @@ fn main() {
     let text_size_opt = second_line.split_ascii_whitespace().next();
     let text_size = text_size_opt.expect("unexpected llvm-size output");
     if text_size == "0" {
-        panic!("Kernel executable has an empty text section. Perhaps the entry point was set incorrectly?\n\n\
-            Kernel executable at `{}`\n", kernel.display());
+        panic!(
+            "Kernel executable has an empty text section. Perhaps the entry point was set \
+             incorrectly?\n\nKernel executable at `{}`\n",
+            kernel.display()
+        );
     }
 
     // strip debug symbols from kernel for faster loading

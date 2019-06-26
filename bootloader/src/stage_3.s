@@ -38,7 +38,7 @@ set_up_page_tables:
     # p4
     lea eax, [_p4]
     or eax, (1 | 2)
-    mov [_p4 + 511 * 8], eax # recursive mapping
+    mov [_p4 + 100 * 8], eax # recursive mapping
     lea eax, [_p3]
     or eax, (1 | 2)
     mov [_p4], eax
@@ -56,7 +56,7 @@ set_up_page_tables:
     add edx, 0x400000 # start address
     add edx, 0x200000 - 1 # align up
     shr edx, 12 + 9 # end huge page number
-    map_p2_table:
+map_p2_table:
     mov [_p2 + ecx * 8], eax
     add eax, 0x200000
     add ecx, 1
@@ -71,7 +71,7 @@ set_up_page_tables:
     lea edx, __bootloader_end
     add edx, 4096 - 1 # align up
     shr edx, 12 # end page number
-    map_p1_table:
+map_p1_table:
     mov [_p1 + ecx * 8], eax
     add eax, 4096
     add ecx, 1
@@ -194,6 +194,14 @@ gdt_64:
 gdt_64_pointer:
     .word gdt_64_pointer - gdt_64 - 1    # 16-bit Size (Limit) of GDT.
     .long gdt_64                            # 32-bit Base Address of GDT. (CPU will zero extend to 64-bit)
+
+.align 16
+kernel_stack_bottom:
+    .rept 4096
+    .word 0xCCCC
+    .endr
+.global kernel_stack_top
+kernel_stack_top:
 
 boot_third_stage_str: .asciz "Booting (third stage)..."
 no_cpuid_str: .asciz "Error: CPU does not support CPUID"

@@ -1,11 +1,21 @@
 use crate::frame_allocator::FrameAllocator;
 use bootloader::bootinfo::MemoryRegionType;
 use fixedvec::FixedVec;
-use x86_64::structures::paging::{self, MapToError, RecursivePageTable, UnmapError};
-use x86_64::structures::paging::{
-    Mapper, MapperFlush, Page, PageSize, PageTableFlags, PhysFrame, Size4KiB,
+use x86_64::{
+    align_up,
+    structures::paging::{
+        self,
+        mapper::{MapToError, Mapper, MapperFlush, UnmapError},
+        page::Size4KiB,
+        Page,
+        PageSize,
+        PageTableFlags,
+        PhysFrame,
+        RecursivePageTable,
+    },
+    PhysAddr,
+    VirtAddr,
 };
-use x86_64::{align_up, PhysAddr, VirtAddr};
 use xmas_elf::program::{self, ProgramHeader64};
 
 pub(crate) fn map_kernel(
@@ -18,23 +28,13 @@ pub(crate) fn map_kernel(
         map_segment(segment, kernel_start, page_table, frame_allocator)?;
     }
 
-    // create a stack
-    // TODO create a stack range dynamically (based on where the kernel is loaded)
-    let stack_start = Page::containing_address(VirtAddr::new(0x57AC_0000_0000));
-    let stack_size: u64 = 512; // in pages
-    let stack_end = stack_start + stack_size;
+    extern "C" {
+        static kernel_stack_top: usize;
+    };
 
-    let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-    let region_type = MemoryRegionType::KernelStack;
-
-    for page in Page::range(stack_start, stack_end) {
-        let frame = frame_allocator
-            .allocate_frame(region_type)
-            .ok_or(MapToError::FrameAllocationFailed)?;
-        map_page(page, frame, flags, page_table, frame_allocator)?.flush();
-    }
-
-    Ok(stack_end.start_address())
+    Ok(VirtAddr::new(
+        unsafe { &kernel_stack_top as *const _ as u64 } + crate::PHYSICAL_MEMORY_OFFSET,
+    ))
 }
 
 pub(crate) fn map_segment(
@@ -162,16 +162,18 @@ where
 {
     struct PageTableAllocator<'a, 'b: 'a>(&'a mut FrameAllocator<'b>);
 
-    impl<'a, 'b> paging::FrameAllocator<Size4KiB> for PageTableAllocator<'a, 'b> {
-        fn alloc(&mut self) -> Option<PhysFrame<Size4KiB>> {
+    unsafe impl<'a, 'b> paging::FrameAllocator<Size4KiB> for PageTableAllocator<'a, 'b> {
+        fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
             self.0.allocate_frame(MemoryRegionType::PageTable)
         }
     }
 
-    page_table.map_to(
-        page,
-        phys_frame,
-        flags,
-        &mut PageTableAllocator(frame_allocator),
-    )
+    unsafe {
+        page_table.map_to(
+            page,
+            phys_frame,
+            flags,
+            &mut PageTableAllocator(frame_allocator),
+        )
+    }
 }

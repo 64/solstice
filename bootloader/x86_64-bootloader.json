@@ -17,5 +17,5 @@
     "disable-redzone": true,
     "panic": "abort",
     "executables": true,
-	"relocation_model": "static"
+    "relocation_model": "static"
 }
