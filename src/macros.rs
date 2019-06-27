@@ -2,7 +2,7 @@
 
 use crate::{
     drivers::{serial, vga::text_mode::Writer},
-    ds::SpinLock,
+    ds::sync::spinlock::*,
 };
 use core::fmt;
 use lazy_static::lazy_static;
