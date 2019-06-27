@@ -23,9 +23,9 @@ mod mem;
 mod qemu;
 
 use bootloader::BootInfo;
+use core::ops::Deref;
 #[allow(unused_imports)]
 use core::panic::PanicInfo;
-use core::ops::Deref;
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
@@ -44,13 +44,13 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     unsafe { asm!("mov %rsp, $0" : "=r"(rsp) ::: "volatile") };
     info!("Stack at {:#x}", rsp);
 
-    let mut bump = mem::bump::BumpAllocator::new(boot_info.memory_map.deref());
+    let mut bump = mem::bump::BumpAllocator::new(&*boot_info.memory_map);
     info!("Page Alloc: {:#?}", bump.alloc_page());
     info!("Page Alloc: {:#?}", bump.alloc_page());
 
     // Run tests
     #[cfg(test)]
-        test_main();
+    test_main();
 
     info!("nothing to do, halting...");
 

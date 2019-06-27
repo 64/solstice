@@ -1,6 +1,8 @@
 use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
-use x86_64::structures::paging::{PhysFrame, Size4KiB};
-use x86_64::PhysAddr;
+use x86_64::{
+    structures::paging::{PhysFrame, Size4KiB},
+    PhysAddr,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Region {
@@ -36,19 +38,17 @@ impl BumpAllocator {
             current_region: 0,
         };
 
-        let mut index: usize = 0;
         for reg in mem_map {
             if reg.region_type == MemoryRegionType::Usable {
                 let addr = alignup(reg.range.start_addr() as usize);
-                bump.regions[index].addr = addr;
-                bump.regions[index].size = reg.range.end_addr() as usize - addr;
+                bump.regions[bump.region_count].addr = addr;
+                bump.regions[bump.region_count].size = reg.range.end_addr() as usize - addr;
                 bump.region_count += 1;
-                index += 1;
             }
         }
 
         // index will be 0 if no usable memory region is found
-        if index == 0 {
+        if bump.region_count == 0 {
             panic!("No physical usable memory region found");
         } else {
             bump
