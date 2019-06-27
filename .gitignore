@@ -2,3 +2,5 @@
 **/*.rs.bk
 .idea/
 bochsout.txt
+
+/.vscode
