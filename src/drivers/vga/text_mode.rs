@@ -100,7 +100,7 @@ impl Writer {
                 // If it's ascii nothing happens
                 let byte: u16;
                 if ch > ASCII_MAX || ch < ASCII_MIN {
-                    byte = ((character.style as u16) << 8) | u16::from(b' ');
+                    byte = u16::from(b' ');
                 } else {
                     byte = ((character.style as u16) << 8) | u16::from(character.ascii);
                 }
