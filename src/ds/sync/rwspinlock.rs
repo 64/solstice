@@ -1,7 +1,7 @@
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
-    sync::atomic::{spin_loop_hint, AtomicBool, AtomicUsize, Ordering},
+    sync::atomic::{spin_loop_hint, AtomicUsize, Ordering},
 };
 
 pub struct RwSpinLock<T> {
@@ -175,4 +175,44 @@ impl<T: core::fmt::Debug> core::fmt::Debug for RwSpinLock<T> {
                 .finish(),
         }
     }
+}
+
+mod tests {
+	use core::prelude::v1::*;
+	use core::sync::atomic::{AtomicUsize, Ordering};
+	use super::*;
+
+	#[derive(Eq, PartialEq, Debug)]
+	struct NonCopy(i32);
+	#[test]
+	fn smoke() {
+		let l = RwLock::new(());
+		drop(l.read());
+		drop(l.write());
+		drop((l.read(), l.read()));
+		drop(l.write());
+	}
+	#[test]
+	fn test_rwlock_unsized() {
+		let rw: &RwLock<[i32]> = &RwLock::new([1, 2, 3]);
+		{
+			let b = &mut *rw.write();
+			b[0] = 4;
+			b[2] = 5;
+		}
+		let comp: &[i32] = &[4, 2, 5];
+		assert_eq!(&*rw.read(), comp);
+	}
+	#[test]
+	fn test_rwlock_try_write() {
+		use core::mem::drop;
+		let lock = RwLock::new(0isize);
+		let read_guard = lock.read();
+		let write_result = lock.try_write();
+		match write_result {
+			None => (),
+			Some(_) => assert!(false, "Error"),
+		}
+		drop(read_guard);
+	}
 }
