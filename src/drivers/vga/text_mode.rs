@@ -98,12 +98,11 @@ impl Writer {
                 // Checks whether ch is a non-ascii character
                 // If it's not ascii, sets it to a space (0x20)
                 // If it's ascii nothing happens
-                let byte: u16;
-                if ch > ASCII_MAX || ch < ASCII_MIN {
-                    byte = u16::from(b' ');
+                let byte: u16 = if ch > ASCII_MAX || ch < ASCII_MIN {
+                    u16::from(b' ')
                 } else {
-                    byte = ((character.style as u16) << 8) | u16::from(character.ascii);
-                }
+                    ((character.style as u16) << 8) | u16::from(character.ascii)
+                };
 
                 self.buf[self.y * WIDTH + self.x].write(byte);
 
