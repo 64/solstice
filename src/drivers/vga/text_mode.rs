@@ -99,7 +99,7 @@ impl Writer {
                 // If it's not ascii, sets it to a space (0x20)
                 // If it's ascii nothing happens
                 let byte: u16 = if ch > ASCII_MAX || ch < ASCII_MIN {
-                    u16::from(b' ')
+                    ((character.style as u16) << 8) | u16::from(b' ')
                 } else {
                     ((character.style as u16) << 8) | u16::from(character.ascii)
                 };
