@@ -17,14 +17,12 @@ mod macros;
 mod cpu;
 mod drivers;
 mod ds;
-mod testing;
 mod kernel;
 mod mem;
 mod qemu;
+mod testing;
 
 use bootloader::BootInfo;
-#[allow(unused_imports)]
-use core::panic::PanicInfo;
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
@@ -38,6 +36,9 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     abort();
 }
+
+#[allow(unused_imports)]
+use core::panic::PanicInfo;
 
 #[panic_handler]
 #[cfg(not(test))]

@@ -85,13 +85,9 @@ impl Log for ScreenLocker {
                 Level::Trace => "\x1B[35m",
             };
 
-            println!(
-                "[{}{}{}] {}",
-                color,
-                record.level(),
-                "\x1B[0m",
-                record.args()
-            );
+            let reset = "\x1B[0m";
+
+            println!("[{}{}{}] {}", color, record.level(), reset, record.args());
         }
     }
 

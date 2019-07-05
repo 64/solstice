@@ -99,7 +99,7 @@ impl RansidState {
                     self.state = State::BgColor;
                 } else if x == b'0' {
                     self.state = State::EndVal;
-                    self.next_style = 0x0F;
+                    self.next_style = Color::White as u8;
                 } else if x == b'1' {
                     self.state = State::EndVal;
                     self.next_style |= 1 << 3;

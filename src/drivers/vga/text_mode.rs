@@ -7,6 +7,9 @@ const TERMINAL_BUFFER: usize = 0xB8000;
 const WIDTH: usize = 80;
 const HEIGHT: usize = 25;
 
+const ASCII_MAX: u8 = 126;
+const ASCII_MIN: u8 = 32;
+
 pub struct Writer {
     state: RansidState,
     buf: &'static mut [Volatile<u16>],
@@ -81,7 +84,7 @@ impl Writer {
     /// Returns position of most recently written character
     pub fn write_byte(&mut self, ch: u8) -> u16 {
         match self.state.ransid_process(ch) {
-            Some(char) => {
+            Some(character) => {
                 if self.handle_escapes(ch) {
                     return 0;
                 }
@@ -91,14 +94,23 @@ impl Writer {
                 // Actually write the character to the screen, escapes have been handled
                 // previously no need to worry about those anymore.
                 let pos: u16 = (self.y * WIDTH + self.x) as u16;
-                let byte: u16 = ((char.style as u16) << 8) | u16::from(char.ascii);
+
+                // Checks whether ch is a non-ascii character
+                // If it's not ascii, sets it to a space (0x20)
+                // If it's ascii nothing happens
+                let byte: u16 = if ch > ASCII_MAX || ch < ASCII_MIN {
+                    (u16::from(character.style) << 8) | u16::from(b' ')
+                } else {
+                    (u16::from(character.style) << 8) | u16::from(character.ascii)
+                };
+
                 self.buf[self.y * WIDTH + self.x].write(byte);
 
                 self.update_cursor_position();
 
                 pos
             }
-            None => return 0,
+            None => 0,
         }
     }
 
@@ -120,7 +132,10 @@ impl Default for Writer {
         Writer {
             state: RansidState::new(),
             buf: unsafe {
-                core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, HEIGHT * WIDTH)
+                core::slice::from_raw_parts_mut(
+                    TERMINAL_BUFFER as *mut Volatile<u16>,
+                    HEIGHT * WIDTH,
+                )
             },
             x: 0,
             y: 0,

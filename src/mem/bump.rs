@@ -1,6 +1,9 @@
 use arrayvec::ArrayVec;
 use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
-use x86_64::PhysAddr;
+use x86_64::{
+    structures::paging::{PhysFrame, Size4KiB},
+    PhysAddr,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Region {
@@ -31,17 +34,22 @@ impl BumpAllocator {
             }
         }
 
+        if bump.regions.len() == 0 {
+            panic!("no physical usable memory regions found");
+        }
+
         bump
     }
 
-    pub fn alloc_page(&mut self) -> Option<PhysAddr> {
+    pub fn alloc_page(&mut self) -> PhysFrame {
         const ALLOC_SIZE: usize = 4096;
 
         let (idx, found_region) = self
             .regions
             .iter_mut()
             .enumerate()
-            .find(|(_, rg)| rg.size >= ALLOC_SIZE)?;
+            .find(|(_, rg)| rg.size >= ALLOC_SIZE)
+            .expect("bump allocator - out of memory");
 
         let out_addr = found_region.addr;
 
@@ -53,7 +61,7 @@ impl BumpAllocator {
             self.regions.remove(idx);
         }
 
-        return Some(out_addr);
+        PhysFrame::<Size4KiB>::containing_address(out_addr)
     }
 }
 
@@ -79,9 +87,10 @@ mod tests {
             },
         ]);
 
-        assert_eq!(bump.alloc_page(), Some(PhysAddr::new(0x1000)));
-        assert_eq!(bump.alloc_page(), Some(PhysAddr::new(0x3000)));
-        assert_eq!(bump.alloc_page(), Some(PhysAddr::new(0x4000)));
-        assert_eq!(bump.alloc_page(), None);
+        let a = |addr: u64| PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(addr));
+
+        assert_eq!(bump.alloc_page(), a(0x1000));
+        assert_eq!(bump.alloc_page(), a(0x3000));
+        assert_eq!(bump.alloc_page(), a(0x4000));
     });
 }

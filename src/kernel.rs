@@ -1,6 +1,4 @@
-use crate::cpu;
-use crate::drivers;
-use crate::mem::bump::BumpAllocator;
+use crate::{cpu, drivers, mem::bump::BumpAllocator};
 use bootloader::bootinfo::MemoryMap;
 
 pub fn kernel_main(mem_map: &MemoryMap) {

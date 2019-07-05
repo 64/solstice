@@ -1,7 +1,7 @@
 use crate::ds::RwSpinLock;
-use x86_64::structures::paging::PageTable;
 use core::ptr::NonNull;
+use x86_64::structures::paging::PageTable;
 
 pub struct AddrSpace {
-    table: RwSpinLock<NonNull<PageTable>>,     
+    table: RwSpinLock<NonNull<PageTable>>,
 }
