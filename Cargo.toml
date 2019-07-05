@@ -6,10 +6,6 @@ version = "0.1.0"
 authors = ["Matt Taylor"]
 edition = "2018"
 
-[profile.dev]
-panic = "abort"
-debug = false
-
 [package.metadata.bootimage]
 run-command = [
     "qemu-system-x86_64",
@@ -22,6 +18,10 @@ test-args = [
 ]
 test-success-exit-code = 33
 
+[profile.dev]
+panic = "abort"
+debug = false
+
 [profile.release]
 panic = "abort"
 
@@ -31,3 +31,5 @@ bootloader = { path = "bootloader", features = ["map_physical_memory"]}
 log = "0.4.6"
 volatile = "0.2.6"
 lazy_static = { version = "1", features = ["spin_no_std"] }
+intrusive-collections = { version = "0.8.1", features = ["nightly"] }
+arrayvec = { version = "0.4.10", default-features = false }

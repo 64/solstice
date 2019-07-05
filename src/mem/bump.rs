@@ -1,68 +1,87 @@
-use bootinfo::{MemoryRegion, MemoryRegionType};
-use bootloader::bootinfo;
+use arrayvec::ArrayVec;
+use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
+use x86_64::PhysAddr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Region {
-    addr: usize,
+    addr: PhysAddr,
     size: usize,
 }
 
 // 64 is the number used in the bootloader crate
 const MAX_REGIONS: usize = 64;
-const ALLOC_SIZE: usize = 4096;
-pub struct BumpAllocator {
-    regions: [Region; MAX_REGIONS],
-    offset: usize,
-    region_count: usize,
-    current_region: usize,
-}
 
-impl Region {
-    pub fn new() -> Self {
-        Self { addr: 0, size: 0 }
-    }
+#[derive(Debug)]
+pub struct BumpAllocator {
+    regions: ArrayVec<[Region; MAX_REGIONS]>,
 }
 
 impl BumpAllocator {
-    pub fn new(mem_map: &[MemoryRegion]) -> Option<Self> {
+    pub fn new(mem_map: &[MemoryRegion]) -> Self {
         let mut bump = Self {
-            regions: [Region::new(); MAX_REGIONS],
-            offset: 0,
-            region_count: 0,
-            current_region: 0,
+            regions: ArrayVec::new(),
         };
 
-        let mut index: usize = 0;
         for reg in mem_map {
             if reg.region_type == MemoryRegionType::Usable {
-                bump.regions[index].addr = reg.range.start_addr() as usize;
-                bump.regions[index].size =
-                    reg.range.end_addr() as usize - reg.range.start_addr() as usize;
-                bump.region_count += 1;
-                index += 1;
+                bump.regions.push(Region {
+                    addr: PhysAddr::new(reg.range.start_addr()),
+                    size: reg.range.end_addr() as usize - reg.range.start_addr() as usize,
+                });
             }
         }
 
-        // index will be 0 if no usable memory region is found
-        if index == 0 {
-            return None;
-        } else {
-            return Some(bump);
-        }
+        bump
     }
 
-    pub fn alloc_page(&mut self) -> Option<usize> {
-        while self.regions[self.current_region].size < ALLOC_SIZE {
-            self.current_region += 1;
-            if self.current_region >= self.region_count {
-                return None;
-            }
+    pub fn alloc_page(&mut self) -> Option<PhysAddr> {
+        const ALLOC_SIZE: usize = 4096;
+
+        let (idx, found_region) = self
+            .regions
+            .iter_mut()
+            .enumerate()
+            .find(|(_, rg)| rg.size >= ALLOC_SIZE)?;
+
+        let out_addr = found_region.addr;
+
+        found_region.addr += ALLOC_SIZE;
+        found_region.size -= ALLOC_SIZE;
+
+        // Can't allocate from this region anymore
+        if found_region.size == 0 {
+            self.regions.remove(idx);
         }
 
-        let addr = self.regions[self.current_region].addr;
-        self.regions[self.current_region].addr += ALLOC_SIZE;
-        self.regions[self.current_region].size -= ALLOC_SIZE;
-
-        return Some(addr);
+        return Some(out_addr);
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    test_case!(allocate, {
+        use bootloader::bootinfo::FrameRange;
+
+        let mut bump = BumpAllocator::new(&[
+            MemoryRegion {
+                range: FrameRange::new(0x1000, 0x2000),
+                region_type: MemoryRegionType::Usable,
+            },
+            MemoryRegion {
+                range: FrameRange::new(0x2000, 0x3000),
+                region_type: MemoryRegionType::Reserved,
+            },
+            MemoryRegion {
+                range: FrameRange::new(0x3000, 0x5000),
+                region_type: MemoryRegionType::Usable,
+            },
+        ]);
+
+        assert_eq!(bump.alloc_page(), Some(PhysAddr::new(0x1000)));
+        assert_eq!(bump.alloc_page(), Some(PhysAddr::new(0x3000)));
+        assert_eq!(bump.alloc_page(), Some(PhysAddr::new(0x4000)));
+        assert_eq!(bump.alloc_page(), None);
+    });
 }

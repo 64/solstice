@@ -1,5 +1,8 @@
 const ESC: u8 = b'\x1B';
 
+// TODO: Rewrite this to be more rusty
+// Perhaps we can use the nom library?
+
 pub enum State {
     Esc,
     Bracket,
@@ -44,8 +47,8 @@ pub struct ColorChar {
 
 fn create_style(bg: Color, fg: Color) -> u8 {
     let background = (bg as u8) << 4u8;
-    let forground = fg as u8;
-    background | forground
+    let foreground = fg as u8;
+    background | foreground
 }
 
 fn convert_color(color: u8) -> u8 {

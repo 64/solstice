@@ -120,7 +120,7 @@ impl Default for Writer {
         Writer {
             state: RansidState::new(),
             buf: unsafe {
-                core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, 80 * 25)
+                core::slice::from_raw_parts_mut(TERMINAL_BUFFER as *mut Volatile<u16>, HEIGHT * WIDTH)
             },
             x: 0,
             y: 0,
@@ -141,11 +141,13 @@ pub fn init() -> Result<(), SetLoggerError> {
 }
 
 fn update_cursor(pos: u16) {
-    unsafe {
-        PortWrite::write_to_port(0x3D4 as u16, 0x0F as u8);
-        PortWrite::write_to_port(0x3D5 as u16, (pos & 0xFF) as u16);
-        PortWrite::write_to_port(0x3D4 as u16, 0x0E as u8);
-        PortWrite::write_to_port(0x3D5 as u16, ((pos >> 8) & 0xFF) as u16);
+    if pos < (HEIGHT * WIDTH) as u16 {
+        unsafe {
+            PortWrite::write_to_port(0x3D4 as u16, 0x0F as u8);
+            PortWrite::write_to_port(0x3D5 as u16, (pos & 0xFF) as u16);
+            PortWrite::write_to_port(0x3D4 as u16, 0x0E as u8);
+            PortWrite::write_to_port(0x3D5 as u16, ((pos >> 8) & 0xFF) as u16);
+        }
     }
 }
 

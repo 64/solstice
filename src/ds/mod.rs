@@ -1,2 +1,3 @@
 pub mod sync;
-pub use sync::SpinLock;
+pub use sync::spinlock::SpinLock;
+pub use sync::rwspinlock::RwSpinLock;

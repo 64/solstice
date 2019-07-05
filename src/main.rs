@@ -28,24 +28,7 @@ use core::panic::PanicInfo;
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
-    kernel::kernel_main();
-
-    info!(
-        "Physical memory offset: {:#x}",
-        boot_info.physical_memory_offset
-    );
-
-    let rip: u64;
-    unsafe { asm!("lea (%rip), $0" : "=r"(rip) ::: "volatile") };
-    info!("Executing at {:#x}", rip);
-
-    let rsp: u64;
-    unsafe { asm!("mov %rsp, $0" : "=r"(rsp) ::: "volatile") };
-    info!("Stack at {:#x}", rsp);
-
-    for entry in boot_info.memory_map.iter() {
-        debug!("{:?}, {:?}", entry.range, entry.region_type);
-    }
+    kernel::kernel_main(&boot_info.memory_map);
 
     // Run tests
     #[cfg(test)]
