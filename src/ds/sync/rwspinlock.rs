@@ -11,6 +11,8 @@ use core::{
     sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering},
 };
 
+use crate::cpu::percpu::PerCpu;
+
 pub struct RwSpinLock<T: ?Sized> {
     lock: AtomicUsize,
     data: UnsafeCell<T>,
@@ -67,8 +69,27 @@ impl<T> RwSpinLock<T> {
 impl<T: ?Sized> RwSpinLock<T> {
     #[inline]
     pub fn read(&self) -> RwSpinLockReadGuard<T> {
+        unsafe { PerCpu::current().preempt_inc() };
+
         loop {
-            match self.try_read() {
+            let guard = {
+                let value = self.lock.fetch_add(READER, Ordering::Acquire);
+
+                // We check the UPGRADED bit here so that new readers are prevented when an
+                // UPGRADED lock is held. This helps reduce writer starvation.
+                if value & (WRITER | UPGRADED) != 0 {
+                    // Lock is taken, undo.
+                    self.lock.fetch_sub(READER, Ordering::Release);
+                    None
+                } else {
+                    Some(RwSpinLockReadGuard {
+                        lock: &self.lock,
+                        data: unsafe { NonNull::new_unchecked(self.data.get()) },
+                    })
+                }
+            };
+
+            match guard {
                 Some(guard) => return guard,
                 None => cpu_relax(),
             }
@@ -77,6 +98,7 @@ impl<T: ?Sized> RwSpinLock<T> {
 
     #[inline]
     pub fn try_read(&self) -> Option<RwSpinLockReadGuard<T>> {
+        unsafe { PerCpu::current().preempt_inc() };
         let value = self.lock.fetch_add(READER, Ordering::Acquire);
 
         // We check the UPGRADED bit here so that new readers are prevented when an
@@ -84,6 +106,7 @@ impl<T: ?Sized> RwSpinLock<T> {
         if value & (WRITER | UPGRADED) != 0 {
             // Lock is taken, undo.
             self.lock.fetch_sub(READER, Ordering::Release);
+            unsafe { PerCpu::current().preempt_dec() };
             None
         } else {
             Some(RwSpinLockReadGuard {
@@ -91,18 +114,6 @@ impl<T: ?Sized> RwSpinLock<T> {
                 data: unsafe { NonNull::new_unchecked(self.data.get()) },
             })
         }
-    }
-
-    #[inline]
-    pub unsafe fn force_read_decrement(&self) {
-        debug_assert!(self.lock.load(Ordering::Relaxed) & !WRITER > 0);
-        self.lock.fetch_sub(READER, Ordering::Release);
-    }
-
-    #[inline]
-    pub unsafe fn force_write_unlock(&self) {
-        debug_assert_eq!(self.lock.load(Ordering::Relaxed) & !(WRITER | UPGRADED), 0);
-        self.lock.fetch_and(!(WRITER | UPGRADED), Ordering::Release);
     }
 
     #[inline(always)]
@@ -129,6 +140,8 @@ impl<T: ?Sized> RwSpinLock<T> {
 
     #[inline]
     pub fn write(&self) -> RwSpinLockWriteGuard<T> {
+        unsafe { PerCpu::current().preempt_inc() };
+
         loop {
             match self.try_write_internal(false) {
                 Some(guard) => return guard,
@@ -139,13 +152,38 @@ impl<T: ?Sized> RwSpinLock<T> {
 
     #[inline]
     pub fn try_write(&self) -> Option<RwSpinLockWriteGuard<T>> {
-        self.try_write_internal(true)
+        unsafe { PerCpu::current().preempt_inc() };
+
+        match self.try_write_internal(true) {
+            Some(guard) => Some(guard),
+            None => {
+                unsafe { PerCpu::current().preempt_dec() };
+                None
+            }
+        }
     }
 
     #[inline]
     pub fn upgradeable_read(&self) -> RwSpinLockUpgradeableGuard<T> {
+        unsafe { PerCpu::current().preempt_inc() };
+
         loop {
-            match self.try_upgradeable_read() {
+            let guard = {
+                if self.lock.fetch_or(UPGRADED, Ordering::Acquire) & (WRITER | UPGRADED) == 0 {
+                    Some(RwSpinLockUpgradeableGuard {
+                        lock: &self.lock,
+                        data: unsafe { NonNull::new_unchecked(self.data.get()) },
+                        _invariant: PhantomData,
+                    })
+                } else {
+                    // We can't unflip the UPGRADED bit back just yet as there is another
+                    // upgradeable or write lock. When they unlock, they will clear the
+                    // bit.
+                    None
+                }
+            };
+
+            match guard {
                 Some(guard) => return guard,
                 None => cpu_relax(),
             }
@@ -154,6 +192,8 @@ impl<T: ?Sized> RwSpinLock<T> {
 
     #[inline]
     pub fn try_upgradeable_read(&self) -> Option<RwSpinLockUpgradeableGuard<T>> {
+        unsafe { PerCpu::current().preempt_inc() };
+
         if self.lock.fetch_or(UPGRADED, Ordering::Acquire) & (WRITER | UPGRADED) == 0 {
             Some(RwSpinLockUpgradeableGuard {
                 lock: &self.lock,
@@ -164,6 +204,7 @@ impl<T: ?Sized> RwSpinLock<T> {
             // We can't unflip the UPGRADED bit back just yet as there is another
             // upgradeable or write lock. When they unlock, they will clear the
             // bit.
+            unsafe { PerCpu::current().preempt_dec() };
             None
         }
     }
@@ -237,6 +278,8 @@ impl<'rwlock, T: ?Sized> RwSpinLockUpgradeableGuard<'rwlock, T> {
         // Reserve the read guard for ourselves
         self.lock.fetch_add(READER, Ordering::Acquire);
 
+        unsafe { PerCpu::current().preempt_inc() };
+
         RwSpinLockReadGuard {
             lock: &self.lock,
             data: self.data,
@@ -251,6 +294,8 @@ impl<'rwlock, T: ?Sized> RwSpinLockWriteGuard<'rwlock, T> {
     pub fn downgrade(self) -> RwSpinLockReadGuard<'rwlock, T> {
         // Reserve the read guard for ourselves
         self.lock.fetch_add(READER, Ordering::Acquire);
+
+        unsafe { PerCpu::current().preempt_inc() };
 
         RwSpinLockReadGuard {
             lock: &self.lock,
@@ -295,6 +340,7 @@ impl<'rwlock, T: ?Sized> Drop for RwSpinLockReadGuard<'rwlock, T> {
     fn drop(&mut self) {
         debug_assert!(self.lock.load(Ordering::Relaxed) & !(WRITER | UPGRADED) > 0);
         self.lock.fetch_sub(READER, Ordering::Release);
+        unsafe { PerCpu::current().preempt_dec() };
     }
 }
 
@@ -305,6 +351,7 @@ impl<'rwlock, T: ?Sized> Drop for RwSpinLockUpgradeableGuard<'rwlock, T> {
             UPGRADED
         );
         self.lock.fetch_sub(UPGRADED, Ordering::AcqRel);
+        unsafe { PerCpu::current().preempt_dec() };
     }
 }
 
@@ -316,6 +363,7 @@ impl<'rwlock, T: ?Sized> Drop for RwSpinLockWriteGuard<'rwlock, T> {
         // The UPGRADED bit may be set if an upgradeable lock attempts an upgrade while
         // this lock is held.
         self.lock.fetch_and(!(WRITER | UPGRADED), Ordering::Release);
+        unsafe { PerCpu::current().preempt_dec() };
     }
 }
 
@@ -370,10 +418,7 @@ mod tests {
         let write_result = lock.try_write();
         match write_result {
             None => (),
-            Some(_) => assert!(
-                false,
-                "try_write should not succeed while read_guard is in scope"
-            ),
+            Some(_) => panic!("try_write should not succeed while read_guard is in scope"),
         }
 
         drop(read_guard);
@@ -381,40 +426,13 @@ mod tests {
 
     test_case!(rw_try_read, {
         let m = RwSpinLock::new(0);
-        mem::forget(m.write());
+        let _w = m.write();
         assert!(m.try_read().is_none());
     });
 
     test_case!(into_inner, {
         let m = RwSpinLock::new(NonCopy(10));
         assert_eq!(m.into_inner(), NonCopy(10));
-    });
-
-    test_case!(force_read_decrement, {
-        let m = RwSpinLock::new(());
-        mem::forget(m.read());
-        mem::forget(m.read());
-        mem::forget(m.read());
-        assert!(m.try_write().is_none());
-        unsafe {
-            m.force_read_decrement();
-            m.force_read_decrement();
-        }
-        assert!(m.try_write().is_none());
-        unsafe {
-            m.force_read_decrement();
-        }
-        assert!(m.try_write().is_some());
-    });
-
-    test_case!(force_write_unlock, {
-        let m = RwSpinLock::new(());
-        mem::forget(m.write());
-        assert!(m.try_read().is_none());
-        unsafe {
-            m.force_write_unlock();
-        }
-        assert!(m.try_read().is_some());
     });
 
     test_case!(upgrade_downgrade, {
@@ -440,5 +458,29 @@ mod tests {
         }
 
         assert!(m.try_upgradeable_read().unwrap().try_upgrade().is_ok());
+    });
+
+    test_case!(preempt_count, {
+        let pc = || PerCpu::current().preempt_count(core::sync::atomic::Ordering::SeqCst);
+        assert_eq!(pc(), 0);
+
+        let m = RwSpinLock::new(());
+        {
+            let _r = m.read();
+            assert_eq!(pc(), 1);
+        }
+        assert_eq!(pc(), 0);
+
+        {
+            let _w = m.write();
+            assert_eq!(pc(), 1);
+        }
+        assert_eq!(pc(), 0);
+
+        {
+            let _u = m.upgradeable_read();
+            assert_eq!(pc(), 1);
+        }
+        assert_eq!(pc(), 0);
     });
 }

@@ -1,13 +1,29 @@
 #![allow(unused_imports)]
-use crate::qemu;
-
+#![allow(dead_code)]
 use core::panic::PanicInfo;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u32)]
+enum ExitCode {
+    Success = 0x10,
+    Failure = 0x11,
+}
+
+fn exit_qemu(exit_code: ExitCode) {
+    use x86_64::instructions::port::Port;
+
+    let mut port = Port::new(0xF4);
+
+    unsafe {
+        port.write(exit_code as u32);
+    }
+}
 
 #[panic_handler]
 #[cfg(test)]
 fn panic(info: &PanicInfo) -> ! {
     println!("[failed] {}", info);
-    qemu::exit(qemu::ExitCode::Failure);
+    exit_qemu(ExitCode::Failure);
     loop {}
 }
 
@@ -20,7 +36,7 @@ pub fn test_runner(tests: &[&dyn Fn()]) {
         test();
     }
 
-    qemu::exit(qemu::ExitCode::Success);
+    exit_qemu(ExitCode::Success);
 }
 
 // Example test

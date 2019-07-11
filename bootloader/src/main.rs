@@ -1,6 +1,7 @@
 #![feature(lang_items)]
 #![feature(global_asm)]
 #![feature(step_trait)]
+#![feature(core_intrinsics)]
 #![feature(asm)]
 #![feature(nll)]
 #![feature(const_fn)]

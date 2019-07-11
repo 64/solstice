@@ -12,6 +12,9 @@
 extern crate log;
 
 #[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
 mod macros;
 
 mod cpu;
@@ -19,7 +22,6 @@ mod drivers;
 mod ds;
 mod kernel;
 mod mem;
-mod qemu;
 mod testing;
 
 use bootloader::BootInfo;

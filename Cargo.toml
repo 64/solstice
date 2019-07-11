@@ -26,7 +26,7 @@ debug = false
 panic = "abort"
 
 [dependencies]
-x86_64 = "0.7.1"
+x86_64 = "0.7.2"
 bootloader = { path = "bootloader", features = ["map_physical_memory"]}
 log = "0.4.6"
 volatile = "0.2.6"

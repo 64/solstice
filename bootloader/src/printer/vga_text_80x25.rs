@@ -1,6 +1,6 @@
 use core::{
     fmt::{Result, Write},
-    slice,
+    intrinsics,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -13,28 +13,23 @@ pub struct Printer;
 
 impl Printer {
     pub fn clear_screen(&mut self) {
-        let vga_buffer = Self::vga_buffer();
-        for byte in vga_buffer {
-            *byte = 0;
+        unsafe {
+            intrinsics::volatile_set_memory(VGA_BUFFER, 0, SCREEN_SIZE);
         }
-        CURRENT_OFFSET.store(0, Ordering::Relaxed);
-    }
 
-    fn vga_buffer() -> &'static mut [u8] {
-        unsafe { slice::from_raw_parts_mut(VGA_BUFFER, SCREEN_SIZE * 2) }
+        CURRENT_OFFSET.store(0, Ordering::Relaxed);
     }
 }
 
 impl Write for Printer {
     fn write_str(&mut self, s: &str) -> Result {
-        let vga_buffer = Self::vga_buffer();
         for byte in s.bytes() {
-            let index = CURRENT_OFFSET.fetch_add(2, Ordering::Relaxed);
-            if index > 80 * 24 {
-                self.clear_screen();
+            let index = CURRENT_OFFSET.fetch_add(2, Ordering::Relaxed) as isize;
+
+            unsafe {
+                VGA_BUFFER.offset(index).write_volatile(byte);
+                VGA_BUFFER.offset(index + 1).write_volatile(0x4f);
             }
-            vga_buffer[index] = byte;
-            vga_buffer[index + 1] = 0x4f;
         }
 
         Ok(())

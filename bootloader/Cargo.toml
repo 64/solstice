@@ -10,21 +10,22 @@ build = "build.rs"
 
 [dependencies]
 xmas-elf = "0.6.2"
-x86_64 = "0.7.1"
+x86_64 = "0.7.2"
 usize_conversions = "0.2.0"
-fixedvec = "0.2.3"
+fixedvec = { git = "https://github.com/rust-embedded/fixedvec-rs", rev = "cfb5c2f9378a0f248e1705def8011322aadc5d40" }
 
 [dependencies.font8x8]
 version = "0.2.4"
 default-features = false
 features = ["unicode"]
+optional = true
 
 [build-dependencies]
 llvm-tools = "0.1"
 
 [features]
 default = []
-vga_320x200 = []
+vga_320x200 = ["font8x8"]
 recursive_page_table = []
 map_physical_memory = []
 

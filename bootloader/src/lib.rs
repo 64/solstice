@@ -7,7 +7,6 @@
 //! blog for an explanation.
 
 #![no_std]
-#![warn(missing_docs)]
 
 pub use crate::bootinfo::BootInfo;
 

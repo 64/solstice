@@ -9,10 +9,10 @@ pub fn kernel_main(mem_map: &MemoryMap) {
     {
         println!("  _____       _     _   _             Join us at discord.gg/vnyVmAE");
         println!(" / ____|     | |   | | (_)            Developed by members:");
-        println!("| (___   ___ | |___| |_ _  ___ ___    {:11} {:11} {:11}", "vinc", "TBA", "TBA");
-        println!(" \\___ \\ / _ \\| / __| __| |/ __/ _ \\   {:11} {:11} {:11}", "Crally", "TBA", "TBA");
-        println!(" ____) | (_) | \\__ \\ |_| | (_|  __/   {:11} {:11} {:11}", "Mehodin", "TBA", "TBA");
-        println!("|_____/ \\___/|_|___/\\__|_|\\___\\___|   {:11} {:11} {:11}", "Alex8675", "TBA", "TBA");
+        println!("| (___   ___ | |___| |_ _  ___ ___      - Vinc");
+        println!(" \\___ \\ / _ \\| / __| __| |/ __/ _ \\     - Crally");
+        println!(" ____) | (_) | \\__ \\ |_| | (_|  __/     - Mehodin");
+        println!("|_____/ \\___/|_|___/\\__|_|\\___\\___|     - Alex8675");
         println!();
     };
 
