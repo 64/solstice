@@ -26,8 +26,8 @@ debug = false
 panic = "abort"
 
 [dependencies]
-x86_64 = "0.7.2"
-bootloader = { path = "bootloader", features = ["map_physical_memory"]}
+x86_64 = { git = "https://github.com/64/x86_64", rev = "f2d42eb4e4939d8bd3dda3c12791dc38c8ef8249" }
+bootloader = { path = "bootloader", features = ["map_physical_memory"] }
 log = "0.4.6"
 volatile = "0.2.6"
 lazy_static = { version = "1", features = ["spin_no_std"] }

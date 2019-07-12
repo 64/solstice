@@ -1,4 +1,8 @@
-use crate::{cpu, drivers, mem::bump::BumpAllocator};
+use crate::{
+    cpu,
+    drivers,
+    mem::{bump::BumpAllocator, pmm::PhysAllocator},
+};
 use bootloader::bootinfo::MemoryMap;
 
 pub fn kernel_main(mem_map: &MemoryMap) {
@@ -19,9 +23,7 @@ pub fn kernel_main(mem_map: &MemoryMap) {
     cpu::gdt::load();
     cpu::idt::load();
 
-    for entry in mem_map.iter() {
-        debug!("{:?}, {:?}", entry.range, entry.region_type);
-    }
+    let bump = BumpAllocator::new(&mem_map);
 
-    let _bump = BumpAllocator::new(&mem_map);
+    let _pmm = PhysAllocator::new(bump);
 }

@@ -1,8 +1,6 @@
 use crate::mem::addr_space::AddrSpace;
 use arrayvec::ArrayVec;
-use core::{
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 pub struct PerCpu {
     addr_space: *const AddrSpace,

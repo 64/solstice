@@ -36,7 +36,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
 
     info!("nothing to do, halting...");
 
-    abort();
+    halt_loop();
 }
 
 #[allow(unused_imports)]
@@ -47,10 +47,10 @@ use core::panic::PanicInfo;
 #[allow(clippy::empty_loop)]
 fn panic(info: &PanicInfo) -> ! {
     error!("{}", info);
-    abort();
+    halt_loop();
 }
 
-fn abort() -> ! {
+fn halt_loop() -> ! {
     loop {
         x86_64::instructions::interrupts::disable();
         x86_64::instructions::hlt();

@@ -1,14 +1,15 @@
 use arrayvec::ArrayVec;
 use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
+use core::slice;
 use x86_64::{
-    structures::paging::{PhysFrame, Size4KiB},
+    structures::paging::{PageSize, PhysFrame, Size4KiB},
     PhysAddr,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Region {
-    addr: PhysAddr,
-    size: usize,
+pub struct Region {
+    pub addr: PhysAddr,
+    pub size: u64,
 }
 
 // 64 is the number used in the bootloader crate
@@ -29,7 +30,7 @@ impl BumpAllocator {
             if reg.region_type == MemoryRegionType::Usable {
                 bump.regions.push(Region {
                     addr: PhysAddr::new(reg.range.start_addr()),
-                    size: reg.range.end_addr() as usize - reg.range.start_addr() as usize,
+                    size: reg.range.end_addr() - reg.range.start_addr(),
                 });
             }
         }
@@ -42,26 +43,33 @@ impl BumpAllocator {
     }
 
     pub fn alloc_page(&mut self) -> PhysFrame {
-        const ALLOC_SIZE: usize = 4096;
-
         let (idx, found_region) = self
             .regions
             .iter_mut()
             .enumerate()
-            .find(|(_, rg)| rg.size >= ALLOC_SIZE)
+            .find(|(_, rg)| rg.size >= Size4KiB::SIZE)
             .expect("bump allocator - out of memory");
 
-        let out_addr = found_region.addr;
+        let out = PhysFrame::containing_address(found_region.addr);
 
-        found_region.addr += ALLOC_SIZE;
-        found_region.size -= ALLOC_SIZE;
+        found_region.addr += Size4KiB::SIZE;
+        found_region.size -= Size4KiB::SIZE;
 
-        // Can't allocate from this region anymore
         if found_region.size == 0 {
+            // Can't allocate from this region anymore
             self.regions.remove(idx);
         }
 
-        PhysFrame::<Size4KiB>::containing_address(out_addr)
+        out
+    }
+}
+
+impl<'a> IntoIterator for &'a BumpAllocator {
+    type Item = &'a Region;
+    type IntoIter = slice::Iter<'a, Region>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.regions.iter()
     }
 }
 
@@ -87,7 +95,7 @@ mod tests {
             },
         ]);
 
-        let a = |addr: u64| PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(addr));
+        let a = |addr: u64| PhysFrame::containing_address(PhysAddr::new(addr));
 
         assert_eq!(bump.alloc_page(), a(0x1000));
         assert_eq!(bump.alloc_page(), a(0x3000));
