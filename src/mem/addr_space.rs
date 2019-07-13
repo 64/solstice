@@ -27,12 +27,11 @@ unsafe impl Sync for AddrSpace {}
 lazy_static! {
     static ref KERNEL: AddrSpace = {
         let (table_frame, _) = Cr3::read();
-        let table_virt = table_frame.start_address().as_u64() + super::PHYS_OFFSET;
-        let ptr = NonNull::new(table_virt as *mut _).unwrap();
+        let table_virt = super::to_virt(table_frame.start_address());
 
         AddrSpace {
             table: RwSpinLock::new(unsafe {
-                OffsetPageTable::new(&mut *ptr.as_ptr(), super::PHYS_OFFSET)
+                OffsetPageTable::new(&mut *table_virt.as_mut_ptr(), super::PHYS_OFFSET)
             }),
         }
     };

@@ -15,23 +15,29 @@ pub struct Region {
 // 64 is the number used in the bootloader crate
 const MAX_REGIONS: usize = 64;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct BumpAllocator {
     regions: ArrayVec<[Region; MAX_REGIONS]>,
+    num_pages: u64,
 }
 
 impl BumpAllocator {
     pub fn new(mem_map: &[MemoryRegion]) -> Self {
         let mut bump = Self {
             regions: ArrayVec::new(),
+            num_pages: 0,
         };
 
         for reg in mem_map {
             if reg.region_type == MemoryRegionType::Usable {
-                bump.regions.push(Region {
+                // TODO: functiono n x86_64 to count pages in range?
+                let rg = Region {
                     addr: PhysAddr::new(reg.range.start_addr()),
                     size: reg.range.end_addr() - reg.range.start_addr(),
-                });
+                };
+
+                bump.regions.push(rg);
+                bump.num_pages += rg.size / Size4KiB::SIZE;
             }
         }
 
@@ -40,6 +46,13 @@ impl BumpAllocator {
         }
 
         bump
+    }
+
+    pub fn split_at(mut self, num_pages: usize) -> (Self, Self) {
+        let mut first = BumpAllocator::default();
+        let mut second = BumpAllocator::default();
+
+        (first, second)
     }
 
     pub fn alloc_page(&mut self) -> PhysFrame {
@@ -54,6 +67,7 @@ impl BumpAllocator {
 
         found_region.addr += Size4KiB::SIZE;
         found_region.size -= Size4KiB::SIZE;
+        self.num_pages -= 1;
 
         if found_region.size == 0 {
             // Can't allocate from this region anymore
@@ -95,10 +109,15 @@ mod tests {
             },
         ]);
 
+
         let a = |addr: u64| PhysFrame::containing_address(PhysAddr::new(addr));
 
+        assert_eq!(bump.num_pages, 3);
         assert_eq!(bump.alloc_page(), a(0x1000));
+        assert_eq!(bump.num_pages, 2);
         assert_eq!(bump.alloc_page(), a(0x3000));
+        assert_eq!(bump.num_pages, 1);
         assert_eq!(bump.alloc_page(), a(0x4000));
+        assert_eq!(bump.num_pages, 0);
     });
 }
