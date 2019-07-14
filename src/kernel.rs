@@ -1,11 +1,11 @@
 use crate::{
     cpu,
     drivers,
-    mem::{bump::BumpAllocator, pmm::PhysAllocator},
+    mem::{map::MemoryMap, pmm::PhysAllocator},
 };
-use bootloader::bootinfo::MemoryMap;
+use bootloader::bootinfo::BootInfo;
 
-pub fn kernel_main(mem_map: &MemoryMap) {
+pub fn kernel_main(info: &BootInfo) {
     drivers::serial::init();
     drivers::vga::text_mode::init().unwrap();
 
@@ -23,7 +23,7 @@ pub fn kernel_main(mem_map: &MemoryMap) {
     cpu::gdt::load();
     cpu::idt::load();
 
-    let bump = BumpAllocator::new(&mem_map);
+    let map = MemoryMap::new(&info.memory_map);
 
-    let _pmm = PhysAllocator::new(bump);
+    let _pmm = PhysAllocator::new(map);
 }

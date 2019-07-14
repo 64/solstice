@@ -31,7 +31,7 @@ lazy_static! {
 
         AddrSpace {
             table: RwSpinLock::new(unsafe {
-                OffsetPageTable::new(&mut *table_virt.as_mut_ptr(), super::PHYS_OFFSET)
+                OffsetPageTable::new(&mut *table_virt.as_mut_ptr(), super::PHYS_OFFSET as u64)
             }),
         }
     };
@@ -42,7 +42,8 @@ impl AddrSpace {
         &*KERNEL
     }
 
-    // TODO: Make sure that allocations and deallocations are done with the same allocator?
+    // TODO: Make sure that allocations and deallocations are done with the same
+    // allocator?
     pub fn map_to_with_allocator<A: FrameAllocator<Size4KiB>>(
         &self,
         virt: VirtAddr,
