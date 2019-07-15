@@ -60,6 +60,10 @@ macro_rules! dbg {
             }
         }
     };
+    ($val:expr,) => { dbg!($val) };
+    ($($val:expr),+ $(,)?) => {
+        ($(dbg!($val)),+,)
+    };
 }
 
 #[doc(hidden)]
