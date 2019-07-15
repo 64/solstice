@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
-use bootloader::bootinfo::{BootInfo, MemoryRegion, MemoryRegionType};
-use core::{alloc::Layout, ptr::NonNull, slice};
+use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
+use core::{alloc::Layout, ptr::NonNull};
 use x86_64::{
     structures::paging::{PageSize, PhysFrame, Size4KiB},
     PhysAddr,
@@ -89,7 +89,7 @@ impl MemoryMap {
         // Clear the page
         #[cfg(not(test))]
         unsafe {
-            let page: *mut u8 = super::to_virt(out.start_address()).as_mut_ptr();
+            let page: *mut u8 = VirtAddr::from(out.start_address()).as_mut_ptr();
             core::intrinsics::write_bytes(
                 page,
                 if cfg!(debug_assertions) { 0xB8 } else { 0x00 },

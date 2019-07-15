@@ -16,6 +16,18 @@ pub struct PhysAddr(usize);
 #[derive(Debug)]
 pub struct VirtAddrNotValid(usize);
 
+impl From<PhysAddr> for VirtAddr {
+    fn from(phys: PhysAddr) -> VirtAddr {
+        VirtAddr::new(phys.as_usize() + 0xFFFF8000_00000000)
+    }
+}
+
+impl From<VirtAddr> for PhysAddr {
+    fn from(virt: VirtAddr) -> PhysAddr {
+        PhysAddr::new(virt.as_usize() - 0xFFFF8000_00000000)
+    }
+}
+
 impl VirtAddr {
     pub fn new(addr: usize) -> VirtAddr {
         Self::try_new(addr).expect(

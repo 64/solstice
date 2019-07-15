@@ -1,5 +1,4 @@
 use crate::ds::RwSpinLock;
-use core::ptr::NonNull;
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{
@@ -10,7 +9,6 @@ use x86_64::{
         Mapper,
         OffsetPageTable,
         Page,
-        PageTable,
         PageTableFlags,
     },
     PhysAddr,
@@ -27,7 +25,7 @@ unsafe impl Sync for AddrSpace {}
 lazy_static! {
     static ref KERNEL: AddrSpace = {
         let (table_frame, _) = Cr3::read();
-        let table_virt = super::to_virt(table_frame.start_address());
+        let table_virt: VirtAddr = table_frame.start_address().into();
 
         AddrSpace {
             table: RwSpinLock::new(unsafe {

@@ -5,9 +5,6 @@
 #![feature(asm)]
 #![feature(abi_x86_interrupt)]
 #![cfg_attr(not(test), no_std)]
-#![cfg_attr(feature = "deny-warnings", deny(warnings))]
-#![cfg_attr(feature = "deny-warnings", deny(missing_docs))]
-#![cfg_attr(not(feature = "deny-warnings"), warn(missing_docs))]
 #![deny(missing_debug_implementations)]
 
 /// Provides the non-standard-width integer types `u2`–`u63`.
