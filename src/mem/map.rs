@@ -22,7 +22,7 @@ impl Region {
                 size: offset,
             },
             Region {
-                addr: PhysAddr::new(self.addr.as_u64() + offset as u64),
+                addr: PhysAddr::new(self.addr.as_usize() + offset),
                 size: self.size - offset,
             },
         )
@@ -50,7 +50,7 @@ impl MemoryMap {
             if reg.region_type == MemoryRegionType::Usable {
                 bump.push(Region {
                     addr: PhysAddr::new(reg.range.start_addr()),
-                    size: (reg.range.end_addr() - reg.range.start_addr()) as usize,
+                    size: reg.range.end_addr() - reg.range.start_addr(),
                 });
             }
         }
@@ -65,61 +65,6 @@ impl MemoryMap {
     fn push(&mut self, rg: Region) {
         self.num_pages += rg.size / Size4KiB::SIZE as usize;
         self.regions.push(rg);
-    }
-
-    pub fn split_at(self, num_pages: usize) -> (Self, Self) {
-        assert_ne!(num_pages, 0);
-
-        let mut first = MemoryMap::default();
-        let mut second = MemoryMap::default();
-
-        let mut pages_seen = 0;
-        let mut copy_from = None;
-
-        for (i, rg) in self.regions.iter().enumerate() {
-            let pages_in_region = rg.size / Size4KiB::SIZE as usize;
-            pages_seen += pages_in_region;
-
-            if pages_seen > num_pages {
-                // Need to split this region
-                let start_addr = rg.addr.as_u64() as usize;
-                let end_addr = start_addr
-                    + Size4KiB::SIZE as usize * (num_pages + pages_in_region - pages_seen);
-                first.push(Region {
-                    addr: PhysAddr::new(start_addr as u64),
-                    size: end_addr - start_addr,
-                });
-
-                second.push(Region {
-                    addr: PhysAddr::new(end_addr as u64),
-                    size: start_addr + pages_in_region * Size4KiB::SIZE as usize as usize
-                        - end_addr,
-                });
-
-                copy_from = Some(i + 1);
-                break;
-            } else {
-                // Can take this entire region, no splitting
-                first.push(*rg);
-
-                if pages_seen == num_pages {
-                    copy_from = Some(i + 1);
-                    break;
-                }
-            }
-        }
-
-        // Bounds check
-        if let Some(copy_from) = copy_from.filter(|&c| c < self.regions.len()) {
-            for rg in &self.regions[copy_from..] {
-                second.push(Region {
-                    addr: rg.addr,
-                    size: rg.size,
-                });
-            }
-        }
-
-        (first, second)
     }
 
     pub fn alloc_page(&mut self) -> PhysFrame {
@@ -188,17 +133,16 @@ pub struct RegionBumpAllocator {
 
 impl RegionBumpAllocator {
     pub fn alloc(&mut self, layout: Layout) -> Option<NonNull<u8>> {
-        let new_off =
-            x86_64::align_up((self.offset + layout.size()) as u64, layout.align() as u64) as usize;
+        let new_off = x86_64::align_up(self.offset + layout.size(), layout.align());
 
         if new_off > self.size {
             None
         } else {
             let out = NonNull::new(
                 VirtAddr::new(
-                    self.start.as_u64()
-                        + x86_64::align_up(self.offset as u64, layout.align() as u64)
-                        + super::PHYS_OFFSET as u64,
+                    self.start.as_usize()
+                        + x86_64::align_up(self.offset, layout.align())
+                        + super::PHYS_OFFSET,
                 )
                 .as_mut_ptr(),
             )
@@ -241,7 +185,7 @@ mod tests {
             },
         ]);
 
-        let a = |addr: u64| PhysFrame::containing_address(PhysAddr::new(addr));
+        let a = |addr: usize| PhysFrame::containing_address(PhysAddr::new(addr));
 
         assert_eq!(bump.num_pages, 3);
         assert_eq!(bump.alloc_page(), a(0x1000));
@@ -250,8 +194,10 @@ mod tests {
         assert_eq!(bump.num_pages, 1);
         assert_eq!(bump.alloc_page(), a(0x4000));
         assert_eq!(bump.num_pages, 0);
+    });
 
-        // Test region allocation
+    test_case!(region, {
+        // Bump allocation
         let mut rg_bump = RegionBumpAllocator::from(Region {
             addr: PhysAddr::new(0x1000),
             size: 4096,
@@ -272,56 +218,8 @@ mod tests {
             rg_bump.alloc(Layout::from_size_align(4096, 4).unwrap()),
             None
         );
-    });
 
-    test_case!(map_split, {
-        use bootloader::bootinfo::FrameRange;
-
-        let bump = MemoryMap::new(&[
-            MemoryRegion {
-                range: FrameRange::new(0x1000, 0x5000),
-                region_type: MemoryRegionType::Usable,
-            },
-            MemoryRegion {
-                range: FrameRange::new(0x6000, 0x8000),
-                region_type: MemoryRegionType::Usable,
-            },
-            MemoryRegion {
-                range: FrameRange::new(0x9000, 0xA000),
-                region_type: MemoryRegionType::Usable,
-            },
-        ]);
-        let bump2 = bump.clone();
-
-        let a = |addr: u64| PhysFrame::containing_address(PhysAddr::new(addr));
-
-        {
-            let (mut left, mut right) = bump.split_at(5);
-            assert_eq!(left.num_pages, 5);
-            assert_eq!(right.num_pages, 2);
-            assert_eq!(left.alloc_page(), a(0x1000));
-            assert_eq!(left.alloc_page(), a(0x2000));
-            assert_eq!(left.alloc_page(), a(0x3000));
-            assert_eq!(left.alloc_page(), a(0x4000));
-            assert_eq!(left.alloc_page(), a(0x6000));
-            assert_eq!(right.alloc_page(), a(0x7000));
-            assert_eq!(right.alloc_page(), a(0x9000));
-        }
-
-        {
-            let (mut left, mut right) = bump2.split_at(4);
-            assert_eq!(left.num_pages, 4);
-            assert_eq!(right.num_pages, 3);
-            assert_eq!(left.alloc_page(), a(0x1000));
-            assert_eq!(left.alloc_page(), a(0x2000));
-            assert_eq!(left.alloc_page(), a(0x3000));
-            assert_eq!(left.alloc_page(), a(0x4000));
-            assert_eq!(right.alloc_page(), a(0x6000));
-            assert_eq!(right.alloc_page(), a(0x7000));
-            assert_eq!(right.alloc_page(), a(0x9000));
-        }
-
-        // Test region splitting
+        // Splitting
         assert_eq!(
             Region {
                 addr: PhysAddr::new(0x1000),

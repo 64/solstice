@@ -33,7 +33,7 @@ pub(crate) fn map_kernel(
     };
 
     Ok(VirtAddr::new(
-        unsafe { &kernel_stack_top as *const _ as u64 } + crate::PHYSICAL_MEMORY_OFFSET,
+        unsafe { &kernel_stack_top as *const _ as usize } + crate::PHYSICAL_MEMORY_OFFSET,
     ))
 }
 
@@ -46,15 +46,15 @@ pub(crate) fn map_segment(
     let typ = segment.get_type().unwrap();
     match typ {
         program::Type::Load => {
-            let mem_size = segment.mem_size;
-            let file_size = segment.file_size;
-            let file_offset = segment.offset;
-            let phys_start_addr = kernel_start + file_offset;
-            let virt_start_addr = VirtAddr::new(segment.virtual_addr);
+            let mem_size = segment.mem_size as usize;
+            let file_size = segment.file_size as usize;
+            let file_offset = segment.offset as usize;
+            let phys_start_addr = kernel_start + file_offset as usize;
+            let virt_start_addr = VirtAddr::new(segment.virtual_addr as usize);
 
             let start_page: Page = Page::containing_address(virt_start_addr);
             let start_frame = PhysFrame::containing_address(phys_start_addr);
-            let end_frame = PhysFrame::containing_address(phys_start_addr + file_size - 1u64);
+            let end_frame = PhysFrame::containing_address(phys_start_addr + file_size as usize - 1usize);
 
             let flags = segment.flags;
             let mut page_table_flags = PageTableFlags::PRESENT;
@@ -73,9 +73,9 @@ pub(crate) fn map_segment(
 
             if mem_size > file_size {
                 // .bss section (or similar), which needs to be zeroed
-                let zero_start = virt_start_addr + file_size;
-                let zero_end = virt_start_addr + mem_size;
-                if zero_start.as_u64() & 0xfff != 0 {
+                let zero_start = virt_start_addr + file_size as usize;
+                let zero_end = virt_start_addr + mem_size as usize;
+                if zero_start.as_usize() & 0xfff != 0 {
                     // A part of the last mapped frame needs to be zeroed. This is
                     // not possible since it could already contains parts of the next
                     // segment. Thus, we need to copy it before zeroing.
@@ -94,9 +94,9 @@ pub(crate) fn map_segment(
                     )?
                     .flush();
 
-                    type PageArray = [u64; Size4KiB::SIZE as usize / 8];
+                    type PageArray = [usize; Size4KiB::SIZE as usize / 8];
 
-                    let last_page = Page::containing_address(virt_start_addr + file_size - 1u64);
+                    let last_page = Page::containing_address(virt_start_addr + file_size as usize - 1usize);
                     let last_page_ptr = last_page.start_address().as_ptr::<PageArray>();
                     let temp_page_ptr = temp_page.start_address().as_mut_ptr::<PageArray>();
 
@@ -126,7 +126,7 @@ pub(crate) fn map_segment(
 
                 // Map additional frames.
                 let start_page: Page = Page::containing_address(VirtAddr::new(align_up(
-                    zero_start.as_u64(),
+                    zero_start.as_usize(),
                     Size4KiB::SIZE,
                 )));
                 let end_page = Page::containing_address(zero_end);
@@ -139,7 +139,7 @@ pub(crate) fn map_segment(
 
                 // zero
                 for offset in file_size..mem_size {
-                    let addr = virt_start_addr + offset;
+                    let addr = virt_start_addr + offset as usize;
                     unsafe { addr.as_mut_ptr::<u8>().write(0) };
                 }
             }

@@ -14,7 +14,6 @@ compile_error!("The bootloader crate must be compiled for the `x86_64-bootloader
 use bootloader::bootinfo::{BootInfo, FrameRange};
 use core::{mem, panic::PanicInfo, slice};
 use fixedvec::alloc_stack;
-use usize_conversions::usize_from;
 use x86_64::{
     structures::paging::{
         frame::PhysFrameRange,
@@ -31,7 +30,7 @@ use x86_64::{
     VirtAddr,
 };
 
-const PHYSICAL_MEMORY_OFFSET: u64 = 0xFFFF800000000000;
+const PHYSICAL_MEMORY_OFFSET: usize = 0xFFFF800000000000;
 
 global_asm!(include_str!("stage_1.s"));
 global_asm!(include_str!("stage_2.s"));
@@ -62,11 +61,11 @@ impl IdentityMappedAddr {
     }
 
     fn virt(&self) -> VirtAddr {
-        VirtAddr::new(self.0.as_u64())
+        VirtAddr::new(self.0.as_usize())
     }
 
-    fn as_u64(&self) -> u64 {
-        self.0.as_u64()
+    fn as_usize(&self) -> usize {
+        self.0.as_usize()
     }
 }
 
@@ -99,22 +98,22 @@ pub unsafe extern "C" fn stage_4() -> ! {
     let bootloader_end = &__bootloader_end as *const _ as u64;
 
     load_elf(
-        IdentityMappedAddr(PhysAddr::new(kernel_start)),
-        kernel_size,
-        VirtAddr::new(memory_map_addr),
-        memory_map_entry_count,
-        PhysAddr::new(page_table_start),
-        PhysAddr::new(page_table_end),
-        PhysAddr::new(bootloader_start),
-        PhysAddr::new(bootloader_end),
+        IdentityMappedAddr(PhysAddr::new(kernel_start as usize)),
+        kernel_size as usize,
+        VirtAddr::new(memory_map_addr as usize),
+        memory_map_entry_count as usize,
+        PhysAddr::new(page_table_start as usize),
+        PhysAddr::new(page_table_end as usize),
+        PhysAddr::new(bootloader_start as usize),
+        PhysAddr::new(bootloader_end as usize),
     )
 }
 
 fn load_elf(
     kernel_start: IdentityMappedAddr,
-    kernel_size: u64,
+    kernel_size: usize,
     memory_map_addr: VirtAddr,
-    memory_map_entry_count: u64,
+    memory_map_entry_count: usize,
     page_table_start: PhysAddr,
     page_table_end: PhysAddr,
     bootloader_start: PhysAddr,
@@ -139,8 +138,8 @@ fn load_elf(
     let mut segments = FixedVec::new(&mut preallocated_space);
     let entry_point;
     {
-        let kernel_start_ptr = usize_from(kernel_start.as_u64()) as *const u8;
-        let kernel = unsafe { slice::from_raw_parts(kernel_start_ptr, usize_from(kernel_size)) };
+        let kernel_start_ptr = kernel_start.as_usize() as *const u8;
+        let kernel = unsafe { slice::from_raw_parts(kernel_start_ptr, kernel_size) };
         let elf_file = xmas_elf::ElfFile::new(kernel).unwrap();
         xmas_elf::header::sanity_check(&elf_file).unwrap();
 
@@ -186,7 +185,7 @@ fn load_elf(
             region_type: MemoryRegionType::FrameZero,
         });
         let bootloader_start_frame = PhysFrame::containing_address(bootloader_start);
-        let bootloader_end_frame = PhysFrame::containing_address(bootloader_end - 1u64);
+        let bootloader_end_frame = PhysFrame::containing_address(bootloader_end - 1usize);
         let bootloader_memory_area =
             PhysFrame::range(bootloader_start_frame, bootloader_end_frame + 1);
         frame_allocator.mark_allocated_region(MemoryRegion {
@@ -195,14 +194,14 @@ fn load_elf(
         });
         let kernel_start_frame = PhysFrame::containing_address(kernel_start.phys());
         let kernel_end_frame =
-            PhysFrame::containing_address(kernel_start.phys() + kernel_size - 1u64);
+            PhysFrame::containing_address(kernel_start.phys() + kernel_size - 1usize);
         let kernel_memory_area = PhysFrame::range(kernel_start_frame, kernel_end_frame + 1);
         frame_allocator.mark_allocated_region(MemoryRegion {
             range: frame_range(kernel_memory_area),
             region_type: MemoryRegionType::Kernel,
         });
         let page_table_start_frame = PhysFrame::containing_address(page_table_start);
-        let page_table_end_frame = PhysFrame::containing_address(page_table_end - 1u64);
+        let page_table_end_frame = PhysFrame::containing_address(page_table_end - 1usize);
         let page_table_memory_area =
             PhysFrame::range(page_table_start_frame, page_table_end_frame + 1);
         frame_allocator.mark_allocated_region(MemoryRegion {
@@ -214,13 +213,13 @@ fn load_elf(
     // Unmap the ELF file.
     let kernel_start_page: Page<Size2MiB> = Page::containing_address(kernel_start.virt());
     let kernel_end_page: Page<Size2MiB> =
-        Page::containing_address(kernel_start.virt() + kernel_size - 1u64);
+        Page::containing_address(kernel_start.virt() + kernel_size - 1usize);
     for page in Page::range_inclusive(kernel_start_page, kernel_end_page) {
         rec_page_table.unmap(page).expect("dealloc error").1.flush();
     }
 
     fn virt_for_phys(phys: PhysAddr) -> VirtAddr {
-        VirtAddr::new(phys.as_u64() + PHYSICAL_MEMORY_OFFSET)
+        VirtAddr::new(phys.as_usize() + PHYSICAL_MEMORY_OFFSET)
     }
 
     let start_frame = PhysFrame::<Size2MiB>::containing_address(PhysAddr::new(0));
@@ -270,8 +269,8 @@ fn load_elf(
     // Construct boot info structure.
     let mut boot_info = BootInfo::new(
         memory_map,
-        recursive_page_table_addr.as_u64(),
-        PHYSICAL_MEMORY_OFFSET,
+        recursive_page_table_addr.as_usize() as u64,
+        PHYSICAL_MEMORY_OFFSET as u64,
     );
     boot_info.memory_map.sort();
 
@@ -295,7 +294,7 @@ fn load_elf(
         mem::drop(rec_page_table);
     }
 
-    let entry_point = VirtAddr::new(entry_point);
+    let entry_point = VirtAddr::new(entry_point as usize);
 
     unsafe { context_switch(boot_info_addr, entry_point, stack_end) };
 }
@@ -338,7 +337,7 @@ fn phys_frame_range(range: FrameRange) -> PhysFrameRange {
 
 fn frame_range(range: PhysFrameRange) -> FrameRange {
     FrameRange::new(
-        range.start.start_address().as_u64(),
-        range.end.start_address().as_u64(),
+        range.start.start_address().as_usize(),
+        range.end.start_address().as_usize(),
     )
 }

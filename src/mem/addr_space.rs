@@ -31,7 +31,7 @@ lazy_static! {
 
         AddrSpace {
             table: RwSpinLock::new(unsafe {
-                OffsetPageTable::new(&mut *table_virt.as_mut_ptr(), super::PHYS_OFFSET as u64)
+                OffsetPageTable::new(&mut *table_virt.as_mut_ptr(), super::PHYS_OFFSET)
             }),
         }
     };

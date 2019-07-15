@@ -3,7 +3,7 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-const PAGE_SIZE: u64 = 4096;
+const PAGE_SIZE: usize = 4096;
 
 const MAX_MEMORY_MAP_SIZE: usize = 64;
 
@@ -11,9 +11,13 @@ const MAX_MEMORY_MAP_SIZE: usize = 64;
 #[repr(C)]
 pub struct MemoryMap {
     entries: [MemoryRegion; MAX_MEMORY_MAP_SIZE],
-    // u64 instead of usize so that the structure layout is platform
-    // independent
-    next_entry_index: u64,
+    next_entry_index: usize,
+}
+
+impl Default for MemoryMap {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[doc(hidden)]
@@ -57,7 +61,7 @@ impl MemoryMap {
             }
         });
         if let Some(first_zero_index) = self.entries.iter().position(|r| r.range.is_empty()) {
-            self.next_entry_index = first_zero_index as u64;
+            self.next_entry_index = first_zero_index as usize;
         }
     }
 
@@ -118,20 +122,20 @@ pub struct FrameRange {
     ///
     /// This convert this frame number to a physical address, multiply it with
     /// the page size (4KiB).
-    pub start_frame_number: u64,
+    pub start_frame_number: usize,
     /// The frame _number_ of the first 4KiB frame that does no longer belong to
     /// the region.
     ///
     /// This convert this frame number to a physical address, multiply it with
     /// the page size (4KiB).
-    pub end_frame_number: u64,
+    pub end_frame_number: usize,
 }
 
 impl FrameRange {
     /// Create a new FrameRange from the passed start_addr and end_addr.
     ///
     /// The end_addr is exclusive.
-    pub fn new(start_addr: u64, end_addr: u64) -> Self {
+    pub fn new(start_addr: usize, end_addr: usize) -> Self {
         let last_byte = end_addr - 1;
         FrameRange {
             start_frame_number: start_addr / PAGE_SIZE,
@@ -145,12 +149,12 @@ impl FrameRange {
     }
 
     /// Returns the physical start address of the memory region.
-    pub fn start_addr(&self) -> u64 {
+    pub fn start_addr(&self) -> usize {
         self.start_frame_number * PAGE_SIZE
     }
 
     /// Returns the physical end address of the memory region.
-    pub fn end_addr(&self) -> u64 {
+    pub fn end_addr(&self) -> usize {
         self.end_frame_number * PAGE_SIZE
     }
 }
@@ -211,8 +215,8 @@ pub enum MemoryRegionType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 pub struct E820MemoryRegion {
-    pub start_addr: u64,
-    pub len: u64,
+    pub start_addr: usize,
+    pub len: usize,
     pub region_type: u32,
     pub acpi_extended_attributes: u32,
 }

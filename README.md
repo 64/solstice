@@ -4,7 +4,8 @@
 
 Rust x86\_64 operating system.
 
-The bootloader is forked from [https://github.com/rust-osdev/bootloader](rust-osdev/bootloader), licensed under MIT.
+The `bootloader` is forked from [rust-osdev/bootloader](https://github.com/rust-osdev/bootloader), licensed under MIT.
+The `x86_64` crate is forked from [rust-osdev/x86_64](https://github.com/rust-osdev/x86_64), licensed under MIT.
 
 ![Img](https://i.imgur.com/1W1r8YX.png)
 

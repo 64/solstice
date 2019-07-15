@@ -26,7 +26,7 @@ debug = false
 panic = "abort"
 
 [dependencies]
-x86_64 = { git = "https://github.com/64/x86_64", rev = "f2d42eb4e4939d8bd3dda3c12791dc38c8ef8249" }
+x86_64 = { path = "x86_64" }
 bootloader = { path = "bootloader", features = ["map_physical_memory"] }
 log = "0.4.6"
 volatile = "0.2.6"
