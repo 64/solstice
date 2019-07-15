@@ -1,4 +1,4 @@
-use crate::mem::map::{MemoryMap, RegionBumpAllocator};
+use crate::mem::map::{MemoryMap, Region, RegionBumpAllocator};
 use arrayvec::ArrayVec;
 use core::{alloc::Layout, mem, num::NonZeroU8, slice};
 use x86_64::VirtAddr;
@@ -27,12 +27,13 @@ impl Block {
     }
 
     fn new_blocks_for_region(
-        region: &mut RegionBumpAllocator,
+        region: Region,
         usable_pages: usize,
     ) -> &'static mut [Block] {
         let block_count = blocks_in_page_region(usable_pages);
 
-        let ptr = region
+        let mut rg_allocator = RegionBumpAllocator::from(region);
+        let ptr = rg_allocator
             .alloc(Layout::from_size_align(block_count, 1).unwrap())
             .expect("failed to allocate from region");
 
@@ -67,12 +68,11 @@ impl PhysAllocator {
             }
 
             let (reserved, usable) = rg.split_at((pages_in_rg - usable_pages) * super::PAGE_SIZE);
-            let mut reserved_allocator = RegionBumpAllocator::from(reserved);
 
             zones.push(Zone {
                 addr: usable.addr.into(),
                 size: x86_64::align_down(usable.size, super::PAGE_SIZE),
-                blocks: Block::new_blocks_for_region(&mut reserved_allocator, usable_pages),
+                blocks: Block::new_blocks_for_region(reserved, usable_pages),
             });
 
             assert_eq!(usable.addr.as_usize() & (super::PAGE_SIZE - 1), 0); // Make sure it's aligned
@@ -84,8 +84,7 @@ impl PhysAllocator {
 
 // Each page of memory has a constant memory overhead of size_of::<PageInfo>(),
 // as well as the whole region having a memory overhead of
-// blocks_in_page_region()
-// * size_of::<Block>().
+// blocks_in_page_region() * size_of::<Block>().
 // Let N = number of (PMM) usable memory pages
 //     T = total number of pages, usable and unusable
 //     W = overhead per page in bytes
@@ -94,12 +93,13 @@ impl PhysAllocator {
 // N * W + blocks_in_page_region <= 4096T - 4096N
 //                N * (W + 4096) <= 4096T - blocks_in_page_region
 //                         N - 1 < (4096T - blocks_in_page_region) / (W + 4096)
-// (due to integer division truncation) Hence: Max usable N = 4096T / (W + 4096)
-// - 1 Subtract one extra page, just to be safe about padding and alignment
-// TODO: should really be blocks_in_page_region(usable_pages)
+// Hence: Max usable N = 4096T / (W + 4096) - 1
+// Subtract one extra page, just to be safe about padding and alignment
+// TODO: should really be blocks_in_page_region(usable_pages), but this hugely
+// complicates the math
 fn usable_pages(total_pages: usize) -> usize {
     (4096 * total_pages as usize - blocks_in_page_region(total_pages))
-        / (mem::size_of::<PageInfo>() + 4096)
+        / (mem::size_of::<PageInfo>() + 4096) - 2
 }
 
 fn blocks_in_page_region(pages: usize) -> usize {

@@ -63,7 +63,7 @@ impl MemoryMap {
     }
 
     fn push(&mut self, rg: Region) {
-        self.num_pages += rg.size / Size4KiB::SIZE as usize;
+        self.num_pages += rg.size / Size4KiB::SIZE;
         self.regions.push(rg);
     }
 
@@ -72,13 +72,13 @@ impl MemoryMap {
             .regions
             .iter_mut()
             .enumerate()
-            .find(|(_, rg)| rg.size >= Size4KiB::SIZE as usize)
+            .find(|(_, rg)| rg.size >= Size4KiB::SIZE)
             .expect("bump allocator - out of memory");
 
         let out = PhysFrame::containing_address(found_region.addr);
 
-        found_region.addr += Size4KiB::SIZE as usize;
-        found_region.size -= Size4KiB::SIZE as usize;
+        found_region.addr += Size4KiB::SIZE;
+        found_region.size -= Size4KiB::SIZE;
         self.num_pages -= 1;
 
         if found_region.size == 0 {
@@ -93,7 +93,7 @@ impl MemoryMap {
             core::intrinsics::write_bytes(
                 page,
                 if cfg!(debug_assertions) { 0xB8 } else { 0x00 },
-                Size4KiB::SIZE as usize,
+                Size4KiB::SIZE,
             )
         };
 
@@ -157,7 +157,7 @@ impl From<Region> for RegionBumpAllocator {
     fn from(rg: Region) -> Self {
         Self {
             start: rg.addr,
-            size: rg.size as usize,
+            size: rg.size,
             offset: 0,
         }
     }
