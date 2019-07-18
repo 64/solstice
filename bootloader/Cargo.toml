@@ -8,10 +8,14 @@ repository = "https://github.com/rust-osdev/bootloader"
 edition = "2018"
 build = "build.rs"
 
+[[bin]]
+name = "bootloader"
+required-features = ["binary"]
+
 [dependencies]
-xmas-elf = "0.6.2"
-x86_64 = { path = "../x86_64" }
-fixedvec = { git = "https://github.com/rust-embedded/fixedvec-rs", rev = "cfb5c2f9378a0f248e1705def8011322aadc5d40" }
+xmas-elf = { version = "0.6.2", optional = true }
+x86_64 = { path = "../x86_64", optional = true }
+fixedvec = { git = "https://github.com/rust-embedded/fixedvec-rs", rev = "cfb5c2f9378a0f248e1705def8011322aadc5d40", optional = true }
 
 [dependencies.font8x8]
 version = "0.2.4"
@@ -24,6 +28,7 @@ llvm-tools = "0.1"
 
 [features]
 default = []
+binary = ["xmas-elf", "x86_64", "fixedvec"]
 vga_320x200 = ["font8x8"]
 recursive_page_table = []
 map_physical_memory = []
