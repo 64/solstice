@@ -178,10 +178,8 @@ pub struct PageTable {
 impl PageTable {
     /// Creates an empty page table.
     pub fn new() -> Self {
-        use array_init::array_init;
-
         PageTable {
-            entries: array_init(|_| PageTableEntry::new()),
+            entries: unsafe { core::mem::zeroed() },
         }
     }
 

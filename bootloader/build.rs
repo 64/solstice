@@ -1,17 +1,23 @@
-use std::{
-    env,
-    path::{Path, PathBuf},
-    process::{self, Command},
-};
+#[cfg(not(feature = "binary"))]
+fn main() {}
 
+#[cfg(feature = "binary")]
 fn main() {
+    use std::{
+        env,
+        fs::File,
+        io::Write,
+        path::{Path, PathBuf},
+        process::{self, Command},
+    };
+
     let target = env::var("TARGET").expect("TARGET not set");
     if Path::new(&target)
         .file_stem()
         .expect("target has no file stem")
         != "x86_64-bootloader"
     {
-        return;
+        panic!("The bootloader must be compiled for the `x86_64-bootloader.json` target.");
     }
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
@@ -19,9 +25,9 @@ fn main() {
         Ok(kernel) => kernel,
         Err(_) => {
             eprintln!(
-                "The KERNEL environment variable must be set for building the bootloader.\n\nIf \
-                 you use `bootimage` for building you need at least version 0.7.0. You can update \
-                 `bootimage` by running `cargo install bootimage --force`."
+                "The KERNEL environment variable must be set for building the bootloader.\n\n\
+                 If you use `bootimage` for building you need at least version 0.7.0. You can \
+                 update `bootimage` by running `cargo install bootimage --force`."
             );
             process::exit(1);
         }
@@ -66,11 +72,8 @@ fn main() {
     let text_size_opt = second_line.split_ascii_whitespace().next();
     let text_size = text_size_opt.expect("unexpected llvm-size output");
     if text_size == "0" {
-        panic!(
-            "Kernel executable has an empty text section. Perhaps the entry point was set \
-             incorrectly?\n\nKernel executable at `{}`\n",
-            kernel.display()
-        );
+        panic!("Kernel executable has an empty text section. Perhaps the entry point was set incorrectly?\n\n\
+            Kernel executable at `{}`\n", kernel.display());
     }
 
     // strip debug symbols from kernel for faster loading
@@ -140,6 +143,34 @@ fn main() {
         process::exit(1);
     }
 
+    // create a file with the `PHYSICAL_MEMORY_OFFSET` constant
+    let file_path = out_dir.join("physical_memory_offset.rs");
+    let mut file = File::create(file_path).expect("failed to create physical_memory_offset.rs");
+    let physical_memory_offset = match env::var("BOOTLOADER_PHYSICAL_MEMORY_OFFSET") {
+        Err(env::VarError::NotPresent) => 0o_177777_770_000_000_000_0000u64,
+        Err(env::VarError::NotUnicode(_)) => panic!(
+            "The `BOOTLOADER_PHYSICAL_MEMORY_OFFSET` environment variable must be valid unicode"
+        ),
+        Ok(s) => if s.starts_with("0x") {
+            u64::from_str_radix(&s[2..], 16)
+        } else {
+            u64::from_str_radix(&s, 10)
+        }
+        .expect(&format!(
+            "The `BOOTLOADER_PHYSICAL_MEMORY_OFFSET` environment variable must be an integer\
+             (is `{}`).",
+            s
+        )),
+    };
+    file.write_all(
+        format!(
+            "const PHYSICAL_MEMORY_OFFSET: u64 = {:#x};",
+            physical_memory_offset
+        )
+        .as_bytes(),
+    )
+    .expect("write to physical_memory_offset.rs failed");
+
     // pass link arguments to rustc
     println!("cargo:rustc-link-search=native={}", out_dir.display());
     println!(
@@ -148,6 +179,7 @@ fn main() {
     );
 
     println!("cargo:rerun-if-env-changed=KERNEL");
+    println!("cargo:rerun-if-env-changed=BOOTLOADER_PHYSICAL_MEMORY_OFFSET");
     println!("cargo:rerun-if-changed={}", kernel.display());
     println!("cargo:rerun-if-changed=build.rs");
 }

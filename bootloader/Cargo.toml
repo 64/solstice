@@ -24,11 +24,11 @@ features = ["unicode"]
 optional = true
 
 [build-dependencies]
-llvm-tools = "0.1"
+llvm-tools = { version = "0.1", optional = true }
 
 [features]
 default = []
-binary = ["xmas-elf", "x86_64", "fixedvec"]
+binary = ["xmas-elf", "x86_64", "fixedvec", "llvm-tools"]
 vga_320x200 = ["font8x8"]
 recursive_page_table = []
 map_physical_memory = []
