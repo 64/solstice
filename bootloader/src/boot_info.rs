@@ -5,8 +5,7 @@ use x86_64::VirtAddr;
 
 pub(crate) fn create_from(memory_map_addr: VirtAddr, entry_count: usize) -> MemoryMap {
     let memory_map_start_ptr = memory_map_addr.as_usize() as *const E820MemoryRegion;
-    let e820_memory_map =
-        unsafe { slice::from_raw_parts(memory_map_start_ptr, entry_count) };
+    let e820_memory_map = unsafe { slice::from_raw_parts(memory_map_start_ptr, entry_count) };
 
     let mut memory_map = MemoryMap::new();
     for region in e820_memory_map {

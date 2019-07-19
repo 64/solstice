@@ -67,7 +67,9 @@ impl MemoryMap {
         self.regions.push(rg);
     }
 
-    pub fn alloc_page(&mut self) -> PhysFrame {
+
+    #[allow(unused)]
+    fn alloc_page(&mut self) -> PhysFrame {
         let (idx, found_region) = self
             .regions
             .iter_mut()

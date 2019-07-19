@@ -6,32 +6,79 @@ use x86_64::VirtAddr;
 pub const MAX_ZONES: usize = 64;
 pub const MAX_ORDER: usize = 11;
 pub const MAX_ORDER_PAGES: usize = 1 << 11;
-pub const MAX_ORDER_BYTES: usize = (1 << 11) * super::PAGE_SIZE;
 
 #[derive(Debug)]
 struct Zone {
     addr: VirtAddr,
     num_pages: usize,
-    blocks: &'static mut [Block],
+    order_list: [&'static mut [Block]; MAX_ORDER + 1],
 }
 
 impl Zone {
     pub fn new(addr: VirtAddr, size: usize, blocks: &'static mut [Block]) -> Self {
         let num_pages = size / super::PAGE_SIZE;
 
+        let mut order_list = Self::split_region(num_pages, blocks);
+
+        let mut blocks_in_order = num_pages;
+        for (order, list) in order_list.iter_mut().enumerate() {
+            for block in list.iter_mut().take(blocks_in_order) {
+                *block = Block::order(order as u8);
+            }
+
+            blocks_in_order /= 2;
+        }
+
+        let largest_order =
+            (num_pages.next_power_of_two().trailing_zeros() as usize).min(MAX_ORDER + 1);
+        for list in order_list[largest_order..].iter_mut() {
+            list[0] = Block::order(largest_order as u8 - 1);
+        }
 
         Zone {
             addr,
             num_pages,
-            blocks,
+            order_list,
         }
+    }
+
+    fn split_region(
+        num_pages: usize,
+        mut blocks: &'static mut [Block],
+    ) -> [&'static mut [Block]; MAX_ORDER + 1] {
+        let max_order_blocks = x86_64::align_up(num_pages, MAX_ORDER_PAGES) / MAX_ORDER_PAGES;
+
+        // TODO: This whole section is a bit of a hack
+        let mut tmp: [Option<&'static mut [Block]>; MAX_ORDER + 1] = [
+            None, None, None, None, None, None, None, None, None, None, None, None,
+        ];
+
+        for (order, block_slice) in tmp.iter_mut().rev().enumerate() {
+            let blocks_in_layer = max_order_blocks * 2_usize.pow(order as u32);
+            let (left, right) = blocks.split_at_mut(blocks_in_layer);
+            *block_slice = Some(left);
+            blocks = right;
+        }
+
+        unsafe { core::mem::transmute(tmp) }
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 enum Block {
     LargestFreeOrder(NonZeroU8),
     Used,
+}
+
+impl core::fmt::Debug for Block {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
+        match self {
+            Block::LargestFreeOrder(nzu) => {
+                fmt.write_fmt(format_args!("LargestFreeOrder({})", nzu.get() - 1))
+            }
+            Block::Used => fmt.write_str("Used"),
+        }
+    }
 }
 
 impl Block {

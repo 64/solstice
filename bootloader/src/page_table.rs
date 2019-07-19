@@ -28,13 +28,42 @@ pub(crate) fn map_kernel(
         map_segment(segment, kernel_start, page_table, frame_allocator)?;
     }
 
-    extern "C" {
+    /*extern "C" {
         static kernel_stack_top: usize;
+        static kernel_stack_guard: usize;
     };
+
+    map_page(
+        Page::<Size4KiB>::containing_address(VirtAddr::new(
+            unsafe { &kernel_stack_guard as *const _ as usize } + crate::PHYSICAL_MEMORY_OFFSET,
+        )),
+        PhysFrame::containing_address(PhysAddr::new(unsafe {
+            &kernel_stack_guard as *const _ as usize
+        })),
+        PageTableFlags::PRESENT | PageTableFlags::NO_EXECUTE,
+        page_table,
+        frame_allocator,
+    );
 
     Ok(VirtAddr::new(
         unsafe { &kernel_stack_top as *const _ as usize } + crate::PHYSICAL_MEMORY_OFFSET,
-    ))
+    ))*/
+
+    let stack_start = Page::containing_address(VirtAddr::new(0x57AC_0000_0000));
+    let stack_size = 128; // in pages
+    let stack_end = stack_start + stack_size;
+
+    let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+    let region_type = MemoryRegionType::KernelStack;
+
+    for page in Page::range(stack_start, stack_end) {
+        let frame = frame_allocator
+            .allocate_frame(region_type)
+            .ok_or(MapToError::FrameAllocationFailed)?;
+        map_page(page, frame, flags, page_table, frame_allocator)?.flush();
+    }
+
+    Ok(stack_end.start_address())
 }
 
 pub(crate) fn map_segment(
@@ -54,7 +83,8 @@ pub(crate) fn map_segment(
 
             let start_page: Page = Page::containing_address(virt_start_addr);
             let start_frame = PhysFrame::containing_address(phys_start_addr);
-            let end_frame = PhysFrame::containing_address(phys_start_addr + file_size as usize - 1usize);
+            let end_frame =
+                PhysFrame::containing_address(phys_start_addr + file_size as usize - 1usize);
 
             let flags = segment.flags;
             let mut page_table_flags = PageTableFlags::PRESENT;
@@ -96,7 +126,8 @@ pub(crate) fn map_segment(
 
                     type PageArray = [usize; Size4KiB::SIZE as usize / 8];
 
-                    let last_page = Page::containing_address(virt_start_addr + file_size as usize - 1usize);
+                    let last_page =
+                        Page::containing_address(virt_start_addr + file_size as usize - 1usize);
                     let last_page_ptr = last_page.start_address().as_ptr::<PageArray>();
                     let temp_page_ptr = temp_page.start_address().as_mut_ptr::<PageArray>();
 
