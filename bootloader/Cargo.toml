@@ -15,7 +15,7 @@ required-features = ["binary"]
 [dependencies]
 xmas-elf = { version = "0.6.2", optional = true }
 x86_64 = { path = "../x86_64", optional = true }
-fixedvec = { git = "https://github.com/rust-embedded/fixedvec-rs", rev = "cfb5c2f9378a0f248e1705def8011322aadc5d40", optional = true }
+fixedvec = { version = "0.2.4", optional = true }
 
 [dependencies.font8x8]
 version = "0.2.4"

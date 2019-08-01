@@ -35,7 +35,7 @@ impl PerCpu {
     }
 
     pub unsafe fn preempt_dec(&self) {
-        self.preempt_count.fetch_sub(1, Ordering::Acquire);
+        self.preempt_count.fetch_sub(1, Ordering::Release);
     }
 
     pub fn without_preempts<T, F>(f: F) -> T

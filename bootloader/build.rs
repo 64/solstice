@@ -1,5 +1,46 @@
 #[cfg(not(feature = "binary"))]
-fn main() {}
+#[allow(unreachable_code)]
+fn main() {
+    #[cfg(target_arch = "x86")]
+    panic!("This crate currently does not support 32-bit protected mode. \
+    See https://github.com/rust-osdev/bootloader/issues/70 for more information.");
+
+    #[cfg(not(target_arch = "x86_64"))]
+    panic!("This crate only supports the x86_64 architecture.");
+}
+
+#[cfg(feature = "binary")]
+fn num_from_env(env: &'static str, aligned: bool) -> Option<u64> {
+    use std::env;
+    match env::var(env) {
+        Err(env::VarError::NotPresent) => None,
+        Err(env::VarError::NotUnicode(_)) => {
+            panic!("The `{}` environment variable must be valid unicode", env,)
+        }
+        Ok(s) => {
+            let num = if s.starts_with("0x") {
+                u64::from_str_radix(&s[2..], 16)
+            } else {
+                u64::from_str_radix(&s, 10)
+            };
+
+            let num = num.expect(&format!(
+                "The `{}` environment variable must be an integer\
+                 (is `{}`).",
+                env, s
+            ));
+
+            if aligned && num % 0x1000 != 0 {
+                panic!(
+                    "The `{}` environment variable must be aligned to 0x1000 (is `{:#x}`).",
+                    env, num
+                );
+            }
+
+            Some(num)
+        }
+    }
+}
 
 #[cfg(feature = "binary")]
 fn main() {
@@ -25,9 +66,9 @@ fn main() {
         Ok(kernel) => kernel,
         Err(_) => {
             eprintln!(
-                "The KERNEL environment variable must be set for building the bootloader.\n\nIf \
-                 you use `bootimage` for building you need at least version 0.7.0. You can update \
-                 `bootimage` by running `cargo install bootimage --force`."
+                "The KERNEL environment variable must be set for building the bootloader.\n\n\
+                 If you use `bootimage` for building you need at least version 0.7.0. You can \
+                 update `bootimage` by running `cargo install bootimage --force`."
             );
             process::exit(1);
         }
@@ -72,11 +113,8 @@ fn main() {
     let text_size_opt = second_line.split_ascii_whitespace().next();
     let text_size = text_size_opt.expect("unexpected llvm-size output");
     if text_size == "0" {
-        panic!(
-            "Kernel executable has an empty text section. Perhaps the entry point was set \
-             incorrectly?\n\nKernel executable at `{}`\n",
-            kernel.display()
-        );
+        panic!("Kernel executable has an empty text section. Perhaps the entry point was set incorrectly?\n\n\
+            Kernel executable at `{}`\n", kernel.display());
     }
 
     // strip debug symbols from kernel for faster loading
@@ -146,33 +184,26 @@ fn main() {
         process::exit(1);
     }
 
-    // create a file with the `PHYSICAL_MEMORY_OFFSET` constant
-    let file_path = out_dir.join("physical_memory_offset.rs");
-    let mut file = File::create(file_path).expect("failed to create physical_memory_offset.rs");
-    let physical_memory_offset = match env::var("BOOTLOADER_PHYSICAL_MEMORY_OFFSET") {
-        Err(env::VarError::NotPresent) => 0o_177777_770_000_000_000_0000u64,
-        Err(env::VarError::NotUnicode(_)) => panic!(
-            "The `BOOTLOADER_PHYSICAL_MEMORY_OFFSET` environment variable must be valid unicode"
-        ),
-        Ok(s) => if s.starts_with("0x") {
-            u64::from_str_radix(&s[2..], 16)
-        } else {
-            u64::from_str_radix(&s, 10)
-        }
-        .expect(&format!(
-            "The `BOOTLOADER_PHYSICAL_MEMORY_OFFSET` environment variable must be an integer(is \
-             `{}`).",
-            s
-        )),
-    };
+    // Configure constants for the bootloader
+    // We leave some variables as Option<T> rather than hardcoding their defaults so that they
+    // can be calculated dynamically by the bootloader.
+    let file_path = out_dir.join("bootloader_config.rs");
+    let mut file = File::create(file_path).expect("failed to create bootloader_config.rs");
+    let physical_memory_offset = num_from_env("BOOTLOADER_PHYSICAL_MEMORY_OFFSET", true);
+    let kernel_stack_address = num_from_env("BOOTLOADER_KERNEL_STACK_ADDRESS", true);
+    let kernel_stack_size = num_from_env("BOOTLOADER_KERNEL_STACK_SIZE", false);
     file.write_all(
         format!(
-            "const PHYSICAL_MEMORY_OFFSET: u64 = {:#x};",
-            physical_memory_offset
+            "const PHYSICAL_MEMORY_OFFSET: Option<usize> = {:?};
+            const KERNEL_STACK_ADDRESS: Option<usize> = {:?};
+            const KERNEL_STACK_SIZE: usize = {};",
+            physical_memory_offset,
+            kernel_stack_address,
+            kernel_stack_size.unwrap_or(512), // size is in number of pages
         )
         .as_bytes(),
     )
-    .expect("write to physical_memory_offset.rs failed");
+    .expect("write to bootloader_config.rs failed");
 
     // pass link arguments to rustc
     println!("cargo:rustc-link-search=native={}", out_dir.display());
@@ -183,6 +214,8 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=KERNEL");
     println!("cargo:rerun-if-env-changed=BOOTLOADER_PHYSICAL_MEMORY_OFFSET");
+    println!("cargo:rerun-if-env-changed=BOOTLOADER_KERNEL_STACK_ADDRESS");
+    println!("cargo:rerun-if-env-changed=BOOTLOADER_KERNEL_STACK_SIZE");
     println!("cargo:rerun-if-changed={}", kernel.display());
     println!("cargo:rerun-if-changed=build.rs");
 }

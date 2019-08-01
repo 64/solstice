@@ -1,6 +1,7 @@
 #![rustfmt::skip]
 use lazy_static::lazy_static;
 use x86_64::structures::idt;
+use x86_64::registers::control::Cr2;
 use crate::cpu::gdt::DOUBLE_FAULT_IST_INDEX;
 
 lazy_static! {
@@ -92,7 +93,7 @@ extern "x86-interrupt" fn general_protection_fault_handler(frame: &mut idt::Inte
 }
 
 extern "x86-interrupt" fn page_fault_handler(frame: &mut idt::InterruptStackFrame, error_code: idt::PageFaultErrorCode) {
-    panic!("EXCEPTION: Page Fault with error code {:#?}\n{:#?}", error_code, frame);
+    panic!("EXCEPTION: Page Fault with error code {:#?}\nAddress {:?}\n{:#?}", error_code, Cr2::read(), frame);
 }
 
 extern "x86-interrupt" fn x87_floating_point_handler(frame: &mut idt::InterruptStackFrame) {

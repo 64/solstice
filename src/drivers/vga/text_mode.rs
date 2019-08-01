@@ -18,7 +18,7 @@ pub struct Writer {
 }
 
 impl Writer {
-    fn write_byte(&mut self, ch: u8)  {
+    fn write_byte(&mut self, ch: u8) {
         if let Some(ch) = self.state.ransid_process(ch) {
             match ch.ascii {
                 b'\n' => self.newline(),
@@ -50,7 +50,7 @@ impl Writer {
     }
 
     fn update_cursor(&self) {
-        //let pos = self.y * WIDTH + self.x;
+        // let pos = self.y * WIDTH + self.x;
         let pos = self.y * WIDTH + self.x;
 
         unsafe {
@@ -65,19 +65,17 @@ impl Writer {
         if self.y == HEIGHT - 1 {
             // Scroll
             unsafe {
-                // Moves old memory up
+                // Move old memory up
                 core::intrinsics::volatile_copy_memory(
                     self.buf.as_mut_ptr(),
                     self.buf[WIDTH..].as_mut_ptr(),
                     WIDTH * (HEIGHT - 1),
                 );
 
-                // Clears bottom row
-                core::intrinsics::volatile_set_memory(
-                    self.buf[(WIDTH * (HEIGHT - 1))..].as_mut_ptr(),
-                    0,
-                    WIDTH,
-                );
+                // Clear bottom row
+                for ch in &mut self.buf[(WIDTH * (HEIGHT - 1))..] {
+                    ch.write(0xf00);
+                }
             }
         } else {
             self.y += 1;
