@@ -280,16 +280,14 @@ fn load_elf(
     .expect("kernel mapping failed");
 
     let physical_memory_offset = if cfg!(feature = "map_physical_memory") {
-        /*let physical_memory_offset = PHYSICAL_MEMORY_OFFSET.unwrap_or_else(|| {
+        let physical_memory_offset = PHYSICAL_MEMORY_OFFSET.unwrap_or_else(|| {
             // If offset not manually provided, find a free p4 entry and map memory here.
             // One level 4 entry spans 2^48/512 bytes (over 500gib) so this should suffice.
             assert!(max_phys_addr < (1 << 48) / 512);
             Page::from_page_table_indices_1gib(level4_entries.get_free_entry(), u9::new(0))
                 .start_address()
                 .as_usize()
-        });*/
-        let _ = PHYSICAL_MEMORY_OFFSET;
-        let physical_memory_offset = 0xFFFF800000000000;
+        });
 
         let virt_for_phys =
             |phys: PhysAddr| -> VirtAddr { VirtAddr::new(phys.as_usize() + physical_memory_offset) };

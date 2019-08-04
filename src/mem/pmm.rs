@@ -1,7 +1,10 @@
-use crate::mem::map::{MemoryMap, Region, RegionBumpAllocator};
+use crate::{
+    ds::SpinLock,
+    mem::map::{MemoryMap, Region, RegionBumpAllocator},
+};
 use arrayvec::ArrayVec;
 use core::{alloc::Layout, mem, num::NonZeroU8, slice};
-use x86_64::VirtAddr;
+use x86_64::{PhysAddr, VirtAddr};
 
 pub const MAX_ZONES: usize = 64;
 pub const MAX_ORDER: usize = 11;
@@ -9,13 +12,13 @@ pub const MAX_ORDER_PAGES: usize = 1 << 11;
 
 #[derive(Debug)]
 struct Zone {
-    addr: VirtAddr,
+    addr: PhysAddr,
     num_pages: usize,
     order_list: [&'static mut [Block]; MAX_ORDER + 1],
 }
 
 impl Zone {
-    pub fn new(addr: VirtAddr, size: usize, blocks: &'static mut [Block]) -> Self {
+    pub fn new(addr: PhysAddr, size: usize, blocks: &'static mut [Block]) -> Self {
         let num_pages = size / super::PAGE_SIZE;
 
         let mut order_list = Self::split_region(num_pages, blocks);
@@ -23,7 +26,7 @@ impl Zone {
         let mut blocks_in_order = num_pages;
         for (order, list) in order_list.iter_mut().enumerate() {
             for block in list.iter_mut().take(blocks_in_order) {
-                *block = Block::order(order as u8);
+                *block = Block::from_order(order as u8);
             }
 
             blocks_in_order /= 2;
@@ -32,7 +35,7 @@ impl Zone {
         let largest_order =
             (num_pages.next_power_of_two().trailing_zeros() as usize).min(MAX_ORDER + 1);
         for list in order_list[largest_order..].iter_mut() {
-            list[0] = Block::order(largest_order as u8 - 1);
+            list[0] = Block::from_order(largest_order as u8 - 1);
         }
 
         Zone {
@@ -62,6 +65,46 @@ impl Zone {
 
         unsafe { core::mem::transmute(tmp) }
     }
+
+    fn alloc_order(&mut self, order: u8) -> Option<PhysAddr> {
+        // TODO: This can be optimised quite a bit (use linked lists?)
+        // Find top level index
+        let mut idx = self.order_list[MAX_ORDER]
+            .iter()
+            .enumerate()
+            .find(|(i, blk)| blk.larger_than(order))?
+            .0;
+
+        for current_order in (order..(MAX_ORDER as u8)).rev() {
+            idx *= 2;
+
+            idx = if self.order_list[current_order as usize][idx].larger_than(order) {
+                idx
+            } else if self.order_list[current_order as usize][idx + 1].larger_than(order) {
+                idx + 1
+            } else {
+                unreachable!();
+            };
+        }
+
+        let out_addr = self.addr.as_usize() + (super::PAGE_SIZE * 2usize.pow(order as u32) * idx);
+        self.order_list[order as usize][idx] = Block::Used;
+
+        // Iterate back up, setting parents to have the correct largest order value
+        for current_order in order + 1..=MAX_ORDER as u8 {
+            let left_idx = idx & !1;
+            let left = self.order_list[current_order as usize - 1][left_idx];
+            let right = self.order_list[current_order as usize - 1][left_idx + 1];
+            self.order_list[current_order as usize][idx / 2] = Block::parent_state(left, right);
+            idx /= 2;
+        }
+
+        Some(PhysAddr::new(out_addr))
+    }
+
+    fn free_order(&mut self, addr: PhysAddr, order: u8) {
+        unimplemented!()
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -82,8 +125,29 @@ impl core::fmt::Debug for Block {
 }
 
 impl Block {
-    fn order(largest_free_order: u8) -> Self {
+    fn from_order(largest_free_order: u8) -> Self {
         Block::LargestFreeOrder(unsafe { NonZeroU8::new_unchecked(largest_free_order + 1) })
+    }
+
+    fn larger_than(self, order: u8) -> bool {
+        match self {
+            // This is really a 'greater than or equal', since o.get() is one larger than the page
+            // it indicates
+            Block::LargestFreeOrder(o) => o.get() > order,
+            _ => false,
+        }
+    }
+
+    fn parent_state(left: Self, right: Self) -> Self {
+        match (left, right) {
+            (Block::LargestFreeOrder(l), Block::LargestFreeOrder(r)) => {
+                Block::LargestFreeOrder(if l > r { l } else { r })
+            }
+            (Block::LargestFreeOrder(x), _) | (_, Block::LargestFreeOrder(x)) => {
+                Block::LargestFreeOrder(x)
+            }
+            _ => Block::Used,
+        }
     }
 
     fn new_blocks_for_region(region: Region, usable_pages: usize) -> &'static mut [Block] {
@@ -116,7 +180,7 @@ impl Block {
 struct PageInfo;
 
 pub struct PhysAllocator {
-    zones: ArrayVec<[Zone; MAX_ZONES]>,
+    zones: ArrayVec<[SpinLock<Zone>; MAX_ZONES]>,
 }
 
 impl PhysAllocator {
@@ -132,16 +196,32 @@ impl PhysAllocator {
 
             let (reserved, usable) = rg.split_at((pages_in_rg - usable_pages) * super::PAGE_SIZE);
 
-            zones.push(Zone::new(
+            zones.push(SpinLock::new(Zone::new(
                 usable.addr.into(),
                 x86_64::align_down(usable.size, super::PAGE_SIZE),
                 Block::new_blocks_for_region(reserved, usable_pages),
-            ));
+            )));
 
             assert_eq!(usable.addr.as_usize() & (super::PAGE_SIZE - 1), 0); // Make sure it's aligned
         }
 
         Self { zones }
+    }
+
+    pub fn alloc_order(&self, order: u8) -> PhysAddr {
+        debug_assert!(order <= MAX_ORDER as u8);
+
+        for zone in &self.zones {
+            let mut zone = zone.lock();
+            if let Some(addr) = zone.alloc_order(order) {
+                return addr;
+            }
+        }
+
+        panic!(
+            "physical memory allocator: out of memory (failed to fulfill order {} alloc)",
+            order
+        );
     }
 }
 
