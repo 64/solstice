@@ -1,9 +1,6 @@
 // TODO: Move into macros/ folder
 
-use crate::{
-    drivers::{serial, vga::text_mode::Writer},
-    ds::SpinLock,
-};
+use crate::{drivers::vga::text_mode::Writer, ds::SpinLock};
 use core::fmt;
 use lazy_static::lazy_static;
 use log::{Level, Log, Metadata, Record};
@@ -16,7 +13,7 @@ pub struct ScreenWriter(Writer);
 impl fmt::Write for ScreenWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         #[cfg(debug_assertions)]
-        serial::write_str(s);
+        crate::drivers::serial::write_str(s);
 
         self.0.write_str(s);
 
@@ -50,7 +47,7 @@ macro_rules! dbg {
         match $val {
             tmp => {
                 println!(
-                    "[DEBUG {}:{}] {} = {:#?}",
+                    "[\x1B[36mDEBUG\x1B[0m {}:{}] {} = {:#?}",
                     file!(),
                     line!(),
                     stringify!($val),

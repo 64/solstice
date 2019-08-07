@@ -1,3 +1,4 @@
+#![allow(unused)]
 use x86_64::instructions::port::PortWrite;
 
 #[repr(u16)]

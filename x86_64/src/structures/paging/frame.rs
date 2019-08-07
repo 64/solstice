@@ -112,6 +112,22 @@ impl<S: PageSize> PhysFrameRange<S> {
     pub fn is_empty(&self) -> bool {
         !(self.start < self.end)
     }
+
+    pub fn len(&self) -> usize {
+        self.end - self.start        
+    }
+
+    pub fn contains(&self, frame: PhysFrame<S>) -> bool {
+        self.start.start_address() <= frame.start_address() && frame.start_address() < self.end.start_address()
+    }
+
+    pub fn contains_address(&self, addr: PhysAddr) -> bool {
+        self.contains(PhysFrame::<S>::containing_address(addr))
+    }
+
+    pub fn contains_range(&self, range: Self) -> bool {
+        self.start.start_address() <= range.start.start_address() && range.end.start_address() <= self.end.start_address()
+    }
 }
 
 impl<S: PageSize> Iterator for PhysFrameRange<S> {

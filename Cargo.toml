@@ -25,7 +25,6 @@ kernel-stack-size = 64
 
 [profile.dev]
 panic = "abort"
-debug = false
 
 [profile.release]
 panic = "abort"

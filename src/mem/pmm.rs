@@ -4,7 +4,10 @@ use crate::{
 };
 use arrayvec::ArrayVec;
 use core::{alloc::Layout, mem, num::NonZeroU8, slice};
-use x86_64::{PhysAddr, VirtAddr};
+use x86_64::{
+    structures::paging::frame::{PhysFrame, PhysFrameRange},
+    PhysAddr,
+};
 
 pub const MAX_ZONES: usize = 64;
 pub const MAX_ORDER: usize = 11;
@@ -12,7 +15,7 @@ pub const MAX_ORDER_PAGES: usize = 1 << 11;
 
 #[derive(Debug)]
 struct Zone {
-    addr: PhysAddr,
+    pages: PhysFrameRange,
     num_pages: usize,
     order_list: [&'static mut [Block]; MAX_ORDER + 1],
 }
@@ -29,17 +32,20 @@ impl Zone {
                 *block = Block::from_order(order as u8);
             }
 
-            blocks_in_order /= 2;
+            blocks_in_order = blocks_in_order / 2 + if blocks_in_order % 2 == 0 { 0 } else { 1 };
         }
 
         let largest_order =
             (num_pages.next_power_of_two().trailing_zeros() as usize).min(MAX_ORDER + 1);
         for list in order_list[largest_order..].iter_mut() {
-            list[0] = Block::from_order(largest_order as u8 - 1);
+            list[0] = Block::from_order(largest_order as u8);
         }
 
+        let start_frame = PhysFrame::containing_address(addr);
+        let end_frame = start_frame + num_pages;
+
         Zone {
-            addr,
+            pages: PhysFrame::range(start_frame, end_frame),
             num_pages,
             order_list,
         }
@@ -66,13 +72,24 @@ impl Zone {
         unsafe { core::mem::transmute(tmp) }
     }
 
-    fn alloc_order(&mut self, order: u8) -> Option<PhysAddr> {
+    // Iterate back up, setting parents to have the correct largest order value
+    fn update_tree(&mut self, start_order: u8, mut idx: usize) {
+        for current_order in start_order + 1..=MAX_ORDER as u8 {
+            let left_idx = idx & !1;
+            let left = self.order_list[current_order as usize - 1][left_idx];
+            let right = self.order_list[current_order as usize - 1][left_idx + 1];
+            self.order_list[current_order as usize][idx / 2] = Block::parent_state(left, right);
+            idx /= 2;
+        }
+    }
+
+    fn alloc(&mut self, order: u8) -> Option<PhysFrameRange> {
         // TODO: This can be optimised quite a bit (use linked lists?)
         // Find top level index
         let mut idx = self.order_list[MAX_ORDER]
             .iter()
             .enumerate()
-            .find(|(i, blk)| blk.larger_than(order))?
+            .find(|(_, blk)| blk.larger_than(order))?
             .0;
 
         for current_order in (order..(MAX_ORDER as u8)).rev() {
@@ -87,23 +104,24 @@ impl Zone {
             };
         }
 
-        let out_addr = self.addr.as_usize() + (super::PAGE_SIZE * 2usize.pow(order as u32) * idx);
         self.order_list[order as usize][idx] = Block::Used;
+        self.update_tree(order, idx);
 
-        // Iterate back up, setting parents to have the correct largest order value
-        for current_order in order + 1..=MAX_ORDER as u8 {
-            let left_idx = idx & !1;
-            let left = self.order_list[current_order as usize - 1][left_idx];
-            let right = self.order_list[current_order as usize - 1][left_idx + 1];
-            self.order_list[current_order as usize][idx / 2] = Block::parent_state(left, right);
-            idx /= 2;
-        }
-
-        Some(PhysAddr::new(out_addr))
+        let start_frame = self.pages.start + 2usize.pow(order as u32) * idx;
+        let end_frame = self.pages.start + 2usize.pow(order as u32) * (idx + 1);
+        Some(PhysFrame::range(start_frame, end_frame))
     }
 
-    fn free_order(&mut self, addr: PhysAddr, order: u8) {
-        unimplemented!()
+    fn free(&mut self, range: PhysFrameRange) {
+        let order = range.len().trailing_zeros();
+        debug_assert!(order as usize <= MAX_ORDER);
+        debug_assert!(self.pages.contains_range(range));
+
+        let idx = (range.start - self.pages.start) / range.len();
+        debug_assert_eq!(self.order_list[order as usize][idx], Block::Used);
+
+        self.order_list[order as usize][idx] = Block::from_order(order as u8);
+        self.update_tree(order as u8, idx);
     }
 }
 
@@ -141,7 +159,15 @@ impl Block {
     fn parent_state(left: Self, right: Self) -> Self {
         match (left, right) {
             (Block::LargestFreeOrder(l), Block::LargestFreeOrder(r)) => {
-                Block::LargestFreeOrder(if l > r { l } else { r })
+                let order = if l == r {
+                    unsafe { NonZeroU8::new_unchecked(l.get() + 1) }
+                } else if l > r {
+                    l
+                } else {
+                    r
+                };
+
+                Block::LargestFreeOrder(order)
             }
             (Block::LargestFreeOrder(x), _) | (_, Block::LargestFreeOrder(x)) => {
                 Block::LargestFreeOrder(x)
@@ -181,11 +207,13 @@ struct PageInfo;
 
 pub struct PhysAllocator {
     zones: ArrayVec<[SpinLock<Zone>; MAX_ZONES]>,
+    num_pages: usize,
 }
 
 impl PhysAllocator {
     pub fn new(map: MemoryMap) -> Self {
         let mut zones = ArrayVec::new();
+        let mut num_pages = 0;
 
         for rg in map {
             let pages_in_rg = rg.size / super::PAGE_SIZE;
@@ -195,26 +223,28 @@ impl PhysAllocator {
             }
 
             let (reserved, usable) = rg.split_at((pages_in_rg - usable_pages) * super::PAGE_SIZE);
-
-            zones.push(SpinLock::new(Zone::new(
+            let zone = Zone::new(
                 usable.addr.into(),
                 x86_64::align_down(usable.size, super::PAGE_SIZE),
                 Block::new_blocks_for_region(reserved, usable_pages),
-            )));
+            );
+
+            num_pages += zone.num_pages;
+            zones.push(SpinLock::new(zone));
 
             assert_eq!(usable.addr.as_usize() & (super::PAGE_SIZE - 1), 0); // Make sure it's aligned
         }
 
-        Self { zones }
+        Self { zones, num_pages }
     }
 
-    pub fn alloc_order(&self, order: u8) -> PhysAddr {
+    pub fn alloc(&self, order: u8) -> PhysFrameRange {
         debug_assert!(order <= MAX_ORDER as u8);
 
-        for zone in &self.zones {
+        for zone in &self.zones[1..] {
             let mut zone = zone.lock();
-            if let Some(addr) = zone.alloc_order(order) {
-                return addr;
+            if let Some(range) = zone.alloc(order) {
+                return range;
             }
         }
 
@@ -222,6 +252,26 @@ impl PhysAllocator {
             "physical memory allocator: out of memory (failed to fulfill order {} alloc)",
             order
         );
+    }
+
+    pub fn free(&self, range: PhysFrameRange) {
+        for zone in &self.zones {
+            let mut zone = zone.lock();
+            if zone.pages.contains_range(range) {
+                zone.free(range);
+                return;
+            }
+        }
+
+        panic!(
+            "attempt to free memory that isn't managed by the PMM ({:?})",
+            range
+        );
+    }
+
+    #[allow(unused)]
+    pub fn num_pages(&self) -> usize {
+        self.num_pages
     }
 }
 

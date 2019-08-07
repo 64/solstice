@@ -25,5 +25,11 @@ pub fn kernel_main(info: &BootInfo) {
 
     let map = MemoryMap::new(&info.memory_map);
 
-    let _pmm = PhysAllocator::new(map);
+    let pmm = PhysAllocator::new(map);
+
+    dbg!("foo");
+    for o in 0..5 {
+        let a = pmm.alloc(o);
+        pmm.free(a);
+    }
 }
