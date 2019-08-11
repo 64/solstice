@@ -205,10 +205,10 @@ impl Block {
 
 struct PageInfo;
 
-// TODO: This should really use an UnsafeCell instead of a RwSpinLock. We don't need to mutate
-// the internal ArrayVec after init().
-// We use an option here because ArrayVec doesn't have a const constructor. This could be done with
-// MaybeUninit in future to avoid that check
+// TODO: This should really use an UnsafeCell instead of a RwSpinLock. We don't
+// need to mutate the internal ArrayVec after init().
+// We use an option here because ArrayVec doesn't have a const constructor. This
+// could be done with MaybeUninit in future to avoid that check
 pub struct PhysAllocator {
     zones: RwSpinLock<Option<ArrayVec<[SpinLock<Zone>; MAX_ZONES]>>>,
 }

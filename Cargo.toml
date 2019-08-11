@@ -27,6 +27,7 @@ kernel-stack-size = 64
 panic = "abort"
 
 [profile.release]
+lto = true
 panic = "abort"
 
 [dependencies]
