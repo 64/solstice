@@ -1,4 +1,4 @@
-use crate::mem::addr_space::AddrSpace;
+use crate::mm::addr_space::AddrSpace;
 use arrayvec::ArrayVec;
 use core::sync::atomic::{AtomicUsize, Ordering};
 

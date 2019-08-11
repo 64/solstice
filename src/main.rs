@@ -8,12 +8,15 @@
 #![feature(core_intrinsics)]
 #![feature(asm)]
 #![feature(alloc_layout_extra)]
+#![feature(alloc_error_handler)]
 
 #[macro_use]
 extern crate log;
 
 #[macro_use]
 extern crate lazy_static;
+
+extern crate alloc;
 
 #[macro_use]
 mod macros;
@@ -22,7 +25,7 @@ mod cpu;
 mod drivers;
 mod ds;
 mod kernel;
-mod mem;
+mod mm;
 mod testing;
 
 use bootloader::BootInfo;
@@ -49,6 +52,11 @@ use core::panic::PanicInfo;
 fn panic(info: &PanicInfo) -> ! {
     error!("{}", info);
     halt_loop();
+}
+
+#[alloc_error_handler]
+fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
+    panic!("allocation error: {:?}", layout)
 }
 
 fn halt_loop() -> ! {

@@ -13,7 +13,10 @@ pub struct ScreenWriter(Writer);
 impl fmt::Write for ScreenWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         #[cfg(debug_assertions)]
-        crate::drivers::serial::write_str(s);
+        {
+            use crate::drivers::serial;
+            serial::write_str(s);
+        }
 
         self.0.write_str(s);
 

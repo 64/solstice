@@ -1,6 +1,6 @@
 use crate::{
-    ds::SpinLock,
-    mem::map::{MemoryMap, Region, RegionBumpAllocator},
+    ds::{RwSpinLock, SpinLock},
+    mm::map::{MemoryMap, Region, RegionBumpAllocator},
 };
 use arrayvec::ArrayVec;
 use core::{alloc::Layout, mem, num::NonZeroU8, slice};
@@ -205,15 +205,25 @@ impl Block {
 
 struct PageInfo;
 
+// TODO: This should really use an UnsafeCell instead of a RwSpinLock. We don't need to mutate
+// the internal ArrayVec after init().
+// We use an option here because ArrayVec doesn't have a const constructor. This could be done with
+// MaybeUninit in future to avoid that check
 pub struct PhysAllocator {
-    zones: ArrayVec<[SpinLock<Zone>; MAX_ZONES]>,
-    num_pages: usize,
+    zones: RwSpinLock<Option<ArrayVec<[SpinLock<Zone>; MAX_ZONES]>>>,
 }
 
+pub static PMM: PhysAllocator = PhysAllocator::new();
+
 impl PhysAllocator {
-    pub fn new(map: MemoryMap) -> Self {
+    const fn new() -> Self {
+        Self {
+            zones: RwSpinLock::new(None),
+        }
+    }
+
+    pub fn init(map: MemoryMap) {
         let mut zones = ArrayVec::new();
-        let mut num_pages = 0;
 
         for rg in map {
             let pages_in_rg = rg.size / super::PAGE_SIZE;
@@ -229,19 +239,18 @@ impl PhysAllocator {
                 Block::new_blocks_for_region(reserved, usable_pages),
             );
 
-            num_pages += zone.num_pages;
             zones.push(SpinLock::new(zone));
 
             assert_eq!(usable.addr.as_usize() & (super::PAGE_SIZE - 1), 0); // Make sure it's aligned
         }
 
-        Self { zones, num_pages }
+        *PMM.zones.write() = Some(zones);
     }
 
-    pub fn alloc(&self, order: u8) -> PhysFrameRange {
+    pub fn alloc(order: u8) -> PhysFrameRange {
         debug_assert!(order <= MAX_ORDER as u8);
 
-        for zone in &self.zones[1..] {
+        for zone in PMM.zones.read().as_ref().unwrap() {
             let mut zone = zone.lock();
             if let Some(range) = zone.alloc(order) {
                 return range;
@@ -254,8 +263,8 @@ impl PhysAllocator {
         );
     }
 
-    pub fn free(&self, range: PhysFrameRange) {
-        for zone in &self.zones {
+    pub fn free(range: PhysFrameRange) {
+        for zone in PMM.zones.read().as_ref().unwrap() {
             let mut zone = zone.lock();
             if zone.pages.contains_range(range) {
                 zone.free(range);
@@ -267,11 +276,6 @@ impl PhysAllocator {
             "attempt to free memory that isn't managed by the PMM ({:?})",
             range
         );
-    }
-
-    #[allow(unused)]
-    pub fn num_pages(&self) -> usize {
-        self.num_pages
     }
 }
 

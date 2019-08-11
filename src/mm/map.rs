@@ -205,15 +205,15 @@ mod tests {
         });
         assert_eq!(
             rg_bump.alloc(Layout::from_size_align(4, 4).unwrap()),
-            Some(NonNull::new((crate::mem::PHYS_OFFSET + 0x1000) as *mut _).unwrap())
+            Some(NonNull::new((crate::mm::PHYS_OFFSET + 0x1000) as *mut _).unwrap())
         );
         assert_eq!(
             rg_bump.alloc(Layout::from_size_align(1, 1).unwrap()),
-            Some(NonNull::new((crate::mem::PHYS_OFFSET + 0x1004) as *mut _).unwrap())
+            Some(NonNull::new((crate::mm::PHYS_OFFSET + 0x1004) as *mut _).unwrap())
         );
         assert_eq!(
             rg_bump.alloc(Layout::from_size_align(4, 4).unwrap()),
-            Some(NonNull::new((crate::mem::PHYS_OFFSET + 0x1008) as *mut _).unwrap())
+            Some(NonNull::new((crate::mm::PHYS_OFFSET + 0x1008) as *mut _).unwrap())
         );
         assert_eq!(
             rg_bump.alloc(Layout::from_size_align(4096, 4).unwrap()),

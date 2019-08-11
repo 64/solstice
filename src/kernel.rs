@@ -1,7 +1,7 @@
 use crate::{
     cpu,
     drivers,
-    mem::{map::MemoryMap, pmm::PhysAllocator},
+    mm::{map::MemoryMap, pmm::PhysAllocator},
 };
 use bootloader::bootinfo::BootInfo;
 
@@ -25,11 +25,5 @@ pub fn kernel_main(info: &BootInfo) {
 
     let map = MemoryMap::new(&info.memory_map);
 
-    let pmm = PhysAllocator::new(map);
-
-    dbg!("foo");
-    for o in 0..5 {
-        let a = pmm.alloc(o);
-        pmm.free(a);
-    }
+    PhysAllocator::init(map);
 }
