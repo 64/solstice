@@ -11,12 +11,12 @@ pub fn kernel_main(info: &BootInfo) {
 
     #[rustfmt::skip]
     {
-        println!("  _____       _     _   _             Join us at discord.gg/vnyVmAE");
-        println!(" / ____|     | |   | | (_)            Developed by members:");
-        println!("| (___   ___ | |___| |_ _  ___ ___      - Vinc");
-        println!(" \\___ \\ / _ \\| / __| __| |/ __/ _ \\     - Crally");
-        println!(" ____) | (_) | \\__ \\ |_| | (_|  __/     - Mehodin");
-        println!("|_____/ \\___/|_|___/\\__|_|\\___\\___|     - Alex8675");
+        println!("  _____       _     _   _             Developed by:");
+        println!(" / ____|     | |   | | (_)              - Vinc");
+        println!("| (___   ___ | |___| |_ _  ___ ___      - Crally");
+        println!(" \\___ \\ / _ \\| / __| __| |/ __/ _ \\     - Mehodin");
+        println!(" ____) | (_) | \\__ \\ |_| | (_|  __/     - Alex8675");
+        println!("|_____/ \\___/|_|___/\\__|_|\\___\\___|");
         println!();
     };
 
@@ -26,4 +26,10 @@ pub fn kernel_main(info: &BootInfo) {
     let map = MemoryMap::new(&info.memory_map);
 
     PhysAllocator::init(map);
+
+    {
+        use alloc::boxed::Box;
+        let mut x = Box::new(0);
+        *x += 2;
+    }
 }

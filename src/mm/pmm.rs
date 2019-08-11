@@ -245,6 +245,7 @@ impl PhysAllocator {
         }
 
         *PMM.zones.write() = Some(zones);
+        debug!("pmm: initialised");
     }
 
     pub fn alloc(order: u8) -> PhysFrameRange {

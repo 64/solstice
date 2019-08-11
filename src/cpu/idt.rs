@@ -33,7 +33,7 @@ lazy_static! {
 
 pub fn load() {
     IDT.load();
-    info!("IDT loaded");
+    debug!("idt: loaded");
 }
 
 test_case!(int3_handler, {

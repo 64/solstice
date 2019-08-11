@@ -1,3 +1,4 @@
+// TODO: This should all be implemented in the bootloader, ideally
 use arrayvec::ArrayVec;
 use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
 use core::{alloc::Layout, ptr::NonNull};

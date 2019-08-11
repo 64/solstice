@@ -64,5 +64,5 @@ pub fn load() {
         load_tss(tss_segment);
     }
 
-    info!("GDT loaded");
+    debug!("gdt: loaded");
 }
