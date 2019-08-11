@@ -27,9 +27,5 @@ pub fn kernel_main(info: &BootInfo) {
 
     PhysAllocator::init(map);
 
-    {
-        use alloc::boxed::Box;
-        let mut x = Box::new(0);
-        *x += 2;
-    }
+    drivers::acpi::init();
 }

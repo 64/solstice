@@ -1,4 +1,4 @@
-use crate::ds::RwSpinLock;
+use crate::{ds::RwSpinLock, mm::pmm::PhysAllocator};
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{
@@ -40,6 +40,15 @@ impl AddrSpace {
         &*KERNEL
     }
 
+    pub fn map_to(
+        &self,
+        virt: VirtAddr,
+        phys: PhysAddr,
+        flags: PageTableFlags,
+    ) -> Result<MapperFlush<Size4KiB>, MapToError> {
+        self.map_to_with_allocator(virt, phys, flags, &mut PhysAllocatorProxy)
+    }
+
     // TODO: Make sure that allocations and deallocations are done with the same
     // allocator?
     pub fn map_to_with_allocator<A: FrameAllocator<Size4KiB>>(
@@ -57,5 +66,13 @@ impl AddrSpace {
                 alloc,
             )
         }
+    }
+}
+
+struct PhysAllocatorProxy;
+
+unsafe impl FrameAllocator<Size4KiB> for PhysAllocatorProxy {
+    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+        Some(PhysAllocator::alloc(0).start)
     }
 }

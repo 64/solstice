@@ -67,6 +67,11 @@ unsafe fn alloc_inner(head: &mut Option<NonNull<Block>>, layout: Layout) -> *mut
     .expect("block layout creation failed");
     debug_assert_eq!(offset, core::mem::size_of::<Block>());
     let alloc_size = layout.pad_to_align().unwrap().size();
+    assert!(
+        alloc_size <= super::PAGE_SIZE,
+        "allocation size {} isn't supported",
+        alloc_size
+    );
 
     for _ in 0..2 {
         let mut prev: Option<NonNull<Block>> = None;

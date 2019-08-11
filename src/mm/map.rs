@@ -48,7 +48,9 @@ impl MemoryMap {
         };
 
         for reg in memory_map.iter() {
-            if reg.region_type == MemoryRegionType::Usable {
+            if reg.region_type == MemoryRegionType::Usable
+                || reg.region_type == MemoryRegionType::Bootloader
+            {
                 bump.push(Region {
                     addr: PhysAddr::new(reg.range.start_addr()),
                     size: reg.range.end_addr() - reg.range.start_addr(),
