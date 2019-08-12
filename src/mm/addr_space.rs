@@ -46,6 +46,13 @@ impl AddrSpace {
         phys: PhysAddr,
         flags: PageTableFlags,
     ) -> Result<MapperFlush<Size4KiB>, MapToError> {
+        struct PhysAllocatorProxy;
+        unsafe impl FrameAllocator<Size4KiB> for PhysAllocatorProxy {
+            fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+                Some(PhysAllocator::alloc(0).start)
+            }
+        }
+
         self.map_to_with_allocator(virt, phys, flags, &mut PhysAllocatorProxy)
     }
 
@@ -66,13 +73,5 @@ impl AddrSpace {
                 alloc,
             )
         }
-    }
-}
-
-struct PhysAllocatorProxy;
-
-unsafe impl FrameAllocator<Size4KiB> for PhysAllocatorProxy {
-    fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
-        Some(PhysAllocator::alloc(0).start)
     }
 }

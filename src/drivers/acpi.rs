@@ -1,5 +1,6 @@
 use crate::mm::{self, addr_space::AddrSpace};
-use acpi::{AcpiHandler, PhysicalMapping};
+use acpi::{AcpiHandler, AmlTable, PhysicalMapping};
+use aml_parser::{AmlContext, AmlError};
 use core::ptr::NonNull;
 use x86_64::{
     structures::paging::{PageTableFlags, PhysFrame},
@@ -8,12 +9,27 @@ use x86_64::{
 };
 
 pub fn init() {
-    unsafe {
-        let acpi = acpi::search_for_rsdp_bios(&mut Acpi).expect("ACPI table parsing failed");
-        dbg!(acpi);
+    let acpi = unsafe { acpi::search_for_rsdp_bios(&mut Acpi).expect("ACPI table parsing failed") };
+
+    debug!("acpi: found tables");
+
+    let mut ctx = AmlContext::new();
+
+    if let Some(dsdt) = &acpi.dsdt {
+        parse_table(&mut ctx, dsdt).expect("AML DSDT parsing failed");
     }
 
-    debug!("acpi: initialised");
+    for ssdt in &acpi.ssdts {
+        parse_table(&mut ctx, ssdt).expect("AML SSDT parsing failed");
+    }
+
+    debug!("acpi: parsed aml");
+}
+
+fn parse_table(ctx: &mut AmlContext, table: &AmlTable) -> Result<(), AmlError> {
+    let virt = VirtAddr::from(PhysAddr::new(table.address));
+
+    ctx.parse_table(unsafe { core::slice::from_raw_parts(virt.as_ptr(), table.length as usize) })
 }
 
 struct Acpi;

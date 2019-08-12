@@ -4,14 +4,13 @@ use core::ptr::NonNull;
 use x86_64::VirtAddr;
 
 // TODO: Use iterators. Could do with a general cleanup
-// TODO: Use Layout functions to support arbitrary alignments
 
 pub struct SlobAllocator(SpinLock<Option<NonNull<Block>>>);
 
 unsafe impl Send for SlobAllocator {}
 unsafe impl Sync for SlobAllocator {}
 
-#[allow(unused)]
+#[repr(align(16))]
 struct Block {
     size: usize,
     next: Option<NonNull<Block>>,
@@ -40,7 +39,13 @@ impl SlobAllocator {
             unsafe {
                 let size = curr.as_mut().size;
                 let next = curr.as_mut().next;
-                debug!("Block at {:p}: size = {}, next = {:?}", curr, size, next);
+                debug_assert_ne!(next, Some(curr), "cycle in free list");
+                debug!(
+                    "Block at {:p}: size = {:#x}, next = {:?}",
+                    Block::allocation(curr),
+                    size,
+                    next
+                );
                 curr_opt = curr.as_mut().next;
             }
         }
@@ -59,38 +64,40 @@ unsafe impl GlobalAlloc for SlobAllocator {
 
 unsafe fn alloc_inner(head: &mut Option<NonNull<Block>>, layout: Layout) -> *mut u8 {
     let (layout, offset) = Layout::from_size_align(
-        core::mem::align_of::<Block>(),
         core::mem::size_of::<Block>(),
+        core::mem::align_of::<Block>(),
     )
     .and_then(|l| l.pad_to_align())
     .and_then(|l| l.extend(layout))
+    .and_then(|(l, o)| l.pad_to_align().map(|l| (l, o)))
     .expect("block layout creation failed");
+
+    let alloc_len = layout.size() - offset;
+    let header_len = offset;
+
     debug_assert_eq!(offset, core::mem::size_of::<Block>());
-    let alloc_size = layout.pad_to_align().unwrap().size();
     assert!(
-        alloc_size <= super::PAGE_SIZE,
+        layout.size() <= super::PAGE_SIZE,
         "allocation size {} isn't supported",
-        alloc_size
+        layout.size()
     );
 
     for _ in 0..2 {
         let mut prev: Option<NonNull<Block>> = None;
         let mut curr_opt = *head;
         while let Some(mut curr) = curr_opt {
-            if curr.as_mut().size == alloc_size {
+            if curr.as_mut().size == alloc_len {
                 match prev {
                     Some(mut p) => p.as_mut().next = curr.as_mut().next,
                     None => *head = curr.as_mut().next,
                 }
 
                 return Block::allocation(curr);
-            } else if curr.as_mut().size > alloc_size {
-                let (left, right) = Block::split_at(curr, alloc_size);
-                if let Some(right) = right {
-                    match prev {
-                        Some(mut p) => p.as_mut().next = Some(right),
-                        None => *head = Some(right),
-                    }
+            } else if curr.as_mut().size > layout.size() {
+                let (left, right) = Block::split_at(curr, alloc_len);
+                match prev {
+                    Some(mut p) => p.as_mut().next = Some(right),
+                    None => *head = Some(right),
                 }
 
                 return Block::allocation(left);
@@ -172,23 +179,18 @@ impl Block {
 
     unsafe fn split_at(
         mut block: NonNull<Self>,
-        bytes: usize,
-    ) -> (NonNull<Self>, Option<NonNull<Self>>) {
-        debug_assert!(block.as_mut().size >= bytes);
+        mut alloc_len: usize,
+    ) -> (NonNull<Self>, NonNull<Self>) {
+        let total_len = alloc_len + core::mem::size_of::<Block>();
+        debug_assert!(block.as_mut().size >= total_len);
 
-        let remaining = block.as_mut().size - bytes;
-        let next = if remaining > core::mem::size_of::<Block>() {
-            let mut next = Block::offset_addr(block, bytes);
-            next.as_mut().size = remaining;
-            next.as_mut().next = block.as_mut().next;
-            block.as_mut().size = bytes;
+        let remaining = block.as_mut().size - total_len;
+        let mut next = Block::offset_addr(block, alloc_len);
 
-            Some(next)
-        } else {
-            None
-        };
-
-        block.as_mut().next = next;
+        next.as_mut().size = remaining;
+        next.as_mut().next = block.as_mut().next;
+        block.as_mut().size = alloc_len;
+        block.as_mut().next = Some(next);
         (block, next)
     }
 
