@@ -1,6 +1,6 @@
 use crate::mm::{self, addr_space::AddrSpace};
 use acpi::{AcpiHandler, AmlTable, PhysicalMapping};
-use aml_parser::{AmlContext, AmlError};
+use aml::{AmlContext, AmlError};
 use core::ptr::NonNull;
 use x86_64::{
     structures::paging::{PageTableFlags, PhysFrame},

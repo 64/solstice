@@ -9,11 +9,13 @@ run-command = [
     "qemu-system-x86_64",
     "-serial", "stdio",
     "-drive", "format=raw,file={}",
+    "-machine", "q35",
     "-no-reboot",
 ]
 test-args = [
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",
     "-display", "none",
+    "-machine", "q35",
     "-no-reboot",
 ]
 test-success-exit-code = 33
@@ -38,5 +40,5 @@ volatile = "0.2.6"
 lazy_static = { version = "1", features = ["spin_no_std"] }
 intrusive-collections = { version = "0.8.1", features = ["nightly"] }
 arrayvec = { version = "0.4.10", default-features = false }
-acpi = "0.3.0"
-aml_parser = "0.3.0"
+acpi = "0.4.0"
+aml = "0.4.0"
