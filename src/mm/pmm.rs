@@ -1,7 +1,11 @@
 use crate::{
     ds::{RwSpinLock, SpinLock},
-    mm::map::{MemoryMap, Region, RegionBumpAllocator},
+    mm::{
+        map::{MemoryMap, Region, RegionBumpAllocator},
+        PageInfo,
+    },
 };
+use x86_64::VirtAddr;
 use arrayvec::ArrayVec;
 use core::{alloc::Layout, mem, num::NonZeroU8, slice};
 use x86_64::{
@@ -109,6 +113,17 @@ impl Zone {
 
         let start_frame = self.pages.start + 2usize.pow(order as u32) * idx;
         let end_frame = self.pages.start + 2usize.pow(order as u32) * (idx + 1);
+
+        // Zero out region
+        unsafe {
+            let page: *mut u8 = VirtAddr::from(start_frame.start_address()).as_mut_ptr();
+            core::intrinsics::write_bytes(
+                page,
+                if cfg!(debug_assertions) { 0xB8 } else { 0x00 },
+                super::PAGE_SIZE * 2usize.pow(order as u32),
+            )
+        };
+
         Some(PhysFrame::range(start_frame, end_frame))
     }
 
@@ -202,8 +217,6 @@ impl Block {
         }
     }
 }
-
-struct PageInfo;
 
 // TODO: This should really use an UnsafeCell instead of a RwSpinLock. We don't
 // need to mutate the internal ArrayVec after init().

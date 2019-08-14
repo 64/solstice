@@ -3,7 +3,7 @@ use x86_64::{
     registers::control::Cr3,
     structures::paging::{
         frame::PhysFrame,
-        mapper::{MapToError, MapperFlush},
+        mapper::{MapToError, MapperFlush, MapperAllSizes},
         page::Size4KiB,
         FrameAllocator,
         Mapper,
@@ -73,5 +73,9 @@ impl AddrSpace {
                 alloc,
             )
         }
+    }
+
+    pub fn translate_addr(&self, addr: VirtAddr) -> Option<PhysAddr> {
+        self.table.read().translate_addr(addr)
     }
 }

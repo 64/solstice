@@ -17,10 +17,12 @@ pub fn init() {
 
     if let Some(dsdt) = &acpi.dsdt {
         parse_table(&mut ctx, dsdt).expect("AML DSDT parsing failed");
+        debug!("acpi: parsed dsdt");
     }
 
-    for ssdt in &acpi.ssdts {
+    for (i, ssdt) in acpi.ssdts.iter().enumerate() {
         parse_table(&mut ctx, ssdt).expect("AML SSDT parsing failed");
+        debug!("acpi: parsed ssdt{}", i);
     }
 
     debug!("acpi: parsed aml");

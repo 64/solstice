@@ -1,9 +1,14 @@
 // TODO: This should all be implemented in the bootloader, ideally
+use crate::mm;
 use arrayvec::ArrayVec;
 use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
-use core::{alloc::Layout, ptr::NonNull};
+use core::{
+    alloc::Layout,
+    ptr::{self, NonNull},
+};
+use crate::mm::addr_space::AddrSpace;
 use x86_64::{
-    structures::paging::{PageSize, PhysFrame, Size4KiB},
+    structures::paging::{FrameAllocator, PageSize, PhysFrame, Size4KiB, PageTableFlags},
     PhysAddr,
     VirtAddr,
 };
@@ -62,6 +67,32 @@ impl MemoryMap {
             panic!("no physical usable memory regions found");
         }
 
+        // Create PageInfo array
+        let kernel = AddrSpace::kernel();
+        for rg in bump.clone().regions {
+            let start = PhysFrame::containing_address(rg.addr);
+            let end = PhysFrame::containing_address(rg.addr + rg.size);
+            for page in PhysFrame::range_inclusive(start, end) {
+                let va = VirtAddr::from_ptr(mm::phys_to_page_info(page));
+
+                // If this page is mapped already, just write
+                if kernel.translate_addr(va).is_some() {
+                    unsafe {
+                        ptr::write(va.as_mut_ptr(), mm::PageInfo::default());
+                    }
+                } else {
+                    // Otherwise, allocate and map
+                    let phys_page = bump.allocate_frame().unwrap();
+                    kernel.map_to_with_allocator(
+                        va,
+                        phys_page.start_address(),
+                        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::GLOBAL,
+                        &mut bump,
+                    ).expect("failed to create PageInfo array").flush();
+                }
+            }
+        }
+
         bump
     }
 
@@ -69,9 +100,10 @@ impl MemoryMap {
         self.num_pages += rg.size / Size4KiB::SIZE;
         self.regions.push(rg);
     }
+}
 
-    #[allow(unused)]
-    fn alloc_page(&mut self) -> PhysFrame {
+unsafe impl FrameAllocator<Size4KiB> for MemoryMap {
+    fn allocate_frame(&mut self) -> Option<PhysFrame> {
         let (idx, found_region) = self
             .regions
             .iter_mut()
@@ -101,7 +133,7 @@ impl MemoryMap {
             )
         };
 
-        out
+        Some(out)
     }
 }
 
@@ -189,14 +221,14 @@ mod tests {
             },
         ]);
 
-        let a = |addr: usize| PhysFrame::containing_address(PhysAddr::new(addr));
+        let a = |addr: usize| Some(PhysFrame::containing_address(PhysAddr::new(addr)));
 
         assert_eq!(bump.num_pages, 3);
-        assert_eq!(bump.alloc_page(), a(0x1000));
+        assert_eq!(bump.allocate_frame(), a(0x1000));
         assert_eq!(bump.num_pages, 2);
-        assert_eq!(bump.alloc_page(), a(0x3000));
+        assert_eq!(bump.allocate_frame(), a(0x3000));
         assert_eq!(bump.num_pages, 1);
-        assert_eq!(bump.alloc_page(), a(0x4000));
+        assert_eq!(bump.allocate_frame(), a(0x4000));
         assert_eq!(bump.num_pages, 0);
     });
 
