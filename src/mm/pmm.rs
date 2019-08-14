@@ -5,12 +5,12 @@ use crate::{
         PageInfo,
     },
 };
-use x86_64::VirtAddr;
 use arrayvec::ArrayVec;
 use core::{alloc::Layout, mem, num::NonZeroU8, slice};
 use x86_64::{
     structures::paging::frame::{PhysFrame, PhysFrameRange},
     PhysAddr,
+    VirtAddr,
 };
 
 pub const MAX_ZONES: usize = 64;

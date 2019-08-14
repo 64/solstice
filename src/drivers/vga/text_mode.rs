@@ -119,7 +119,7 @@ pub fn init() -> Result<(), SetLoggerError> {
     // Allows use of logging macros
     log::set_logger(&*macros::SCREEN).map(|()| {
         #[cfg(debug_assertions)]
-        log::set_max_level(LevelFilter::Debug);
+        log::set_max_level(LevelFilter::Trace);
 
         #[cfg(not(debug_assertions))]
         log::set_max_level(LevelFilter::Info);

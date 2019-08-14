@@ -1,14 +1,13 @@
 // TODO: This should all be implemented in the bootloader, ideally
-use crate::mm;
+use crate::mm::{self, addr_space::AddrSpace};
 use arrayvec::ArrayVec;
 use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
 use core::{
     alloc::Layout,
     ptr::{self, NonNull},
 };
-use crate::mm::addr_space::AddrSpace;
 use x86_64::{
-    structures::paging::{FrameAllocator, PageSize, PhysFrame, Size4KiB, PageTableFlags},
+    structures::paging::{FrameAllocator, PageSize, PageTableFlags, PhysFrame, Size4KiB},
     PhysAddr,
     VirtAddr,
 };
@@ -83,12 +82,17 @@ impl MemoryMap {
                 } else {
                     // Otherwise, allocate and map
                     let phys_page = bump.allocate_frame().unwrap();
-                    kernel.map_to_with_allocator(
-                        va,
-                        phys_page.start_address(),
-                        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::GLOBAL,
-                        &mut bump,
-                    ).expect("failed to create PageInfo array").flush();
+                    kernel
+                        .map_to_with_allocator(
+                            va,
+                            phys_page.start_address(),
+                            PageTableFlags::PRESENT
+                                | PageTableFlags::WRITABLE
+                                | PageTableFlags::GLOBAL,
+                            &mut bump,
+                        )
+                        .expect("failed to create PageInfo array")
+                        .flush();
                 }
             }
         }

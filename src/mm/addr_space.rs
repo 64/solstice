@@ -3,7 +3,7 @@ use x86_64::{
     registers::control::Cr3,
     structures::paging::{
         frame::PhysFrame,
-        mapper::{MapToError, MapperFlush, MapperAllSizes},
+        mapper::{MapToError, MapperAllSizes, MapperFlush},
         page::Size4KiB,
         FrameAllocator,
         Mapper,

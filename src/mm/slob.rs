@@ -76,11 +76,10 @@ unsafe fn alloc_inner(head: &mut Option<NonNull<Block>>, layout: Layout) -> *mut
     let header_len = offset;
 
     debug_assert_eq!(offset, core::mem::size_of::<Block>());
-    assert!(
-        layout.size() <= super::PAGE_SIZE,
-        "allocation size {} isn't supported",
-        layout.size()
-    );
+
+    if layout.size() > super::PAGE_SIZE {
+        trace!("slob: large {} byte allocation", layout.size());
+    }
 
     for _ in 0..2 {
         let mut prev: Option<NonNull<Block>> = None;
@@ -107,7 +106,7 @@ unsafe fn alloc_inner(head: &mut Option<NonNull<Block>>, layout: Layout) -> *mut
             curr_opt = curr.as_mut().next;
         }
 
-        morecore(head);
+        morecore(head, (layout.size() + super::PAGE_SIZE) / super::PAGE_SIZE);
     }
 
     unreachable!();
@@ -153,18 +152,22 @@ unsafe fn dealloc_inner(head: &mut Option<NonNull<Block>>, ptr: *mut u8, layout:
     }
 }
 
-fn morecore(head: &mut Option<NonNull<Block>>) {
+fn morecore(head: &mut Option<NonNull<Block>>, num_pages: usize) {
     unsafe {
-        let addr: VirtAddr = PhysAllocator::alloc(0).start.start_address().into();
+        let addr: VirtAddr =
+            PhysAllocator::alloc(num_pages.next_power_of_two().trailing_zeros() as u8)
+                .start
+                .start_address()
+                .into();
         let p_block = addr.as_mut_ptr::<Block>();
-        let size = super::PAGE_SIZE - core::mem::size_of::<Block>();
+        let size = num_pages * super::PAGE_SIZE - core::mem::size_of::<Block>();
         (*p_block).size = size;
         (*p_block).next = None;
 
         // Put this new chunk onto the free list
         dealloc_inner(
             head,
-            p_block.offset(1) as *mut u8,
+            Block::allocation(NonNull::new(p_block).unwrap()),
             Layout::from_size_align(size, 1).unwrap(),
         );
     }
