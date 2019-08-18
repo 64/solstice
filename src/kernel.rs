@@ -24,7 +24,6 @@ pub fn kernel_main(info: &BootInfo) {
     cpu::idt::load();
 
     let map = MemoryMap::new(&info.memory_map);
-
     PhysAllocator::init(map);
 
     drivers::acpi::init();
