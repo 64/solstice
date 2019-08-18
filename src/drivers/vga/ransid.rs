@@ -44,7 +44,7 @@ pub struct ColorChar {
     pub style: u8,
     pub ascii: u8,
 }
-
+#[allow(dead_code)]
 fn create_style(bg: Color, fg: Color) -> u8 {
     let background = (bg as u8) << 4u8;
     let foreground = fg as u8;
