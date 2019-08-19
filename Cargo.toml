@@ -8,8 +8,8 @@ edition = "2018"
 run-command = [
     "qemu-system-x86_64",
     "-serial", "stdio",
-    "-drive", "format=raw,file={}",
     "-machine", "q35",
+    "-drive", "format=raw,file={}",
     "-no-reboot",
 ]
 test-args = [
