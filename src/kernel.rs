@@ -27,4 +27,6 @@ pub fn kernel_main(info: &BootInfo) {
     PhysAllocator::init(map);
 
     drivers::acpi::init();
+    drivers::acpi::enable();
+    drivers::acpi::shutdown();
 }
