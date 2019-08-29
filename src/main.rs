@@ -29,7 +29,6 @@ mod ds;
 mod kernel;
 mod mm;
 mod testing;
-
 use bootloader::BootInfo;
 
 #[no_mangle]
