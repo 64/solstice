@@ -26,7 +26,12 @@ pub fn kernel_main(info: &BootInfo) {
     let map = MemoryMap::new(&info.memory_map);
     PhysAllocator::init(map);
 
-    drivers::acpi::init();
-    drivers::acpi::enable();
-    drivers::acpi::shutdown();
+    let mut acpi = drivers::acpi::init();
+    debug!("ACPI initialized");
+    drivers::acpi::enable(&mut acpi);
+    debug!("ACPI enabled");
+    debug!("Nothing to do, shutting down...");
+    drivers::acpi::shutdown(&mut acpi);
+    debug!("SHUTDOWN FAILED");
+    unreachable!();
 }
