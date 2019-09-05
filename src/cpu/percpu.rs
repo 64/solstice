@@ -1,7 +1,7 @@
 use crate::mm::addr_space::AddrSpace;
 use arrayvec::ArrayVec;
 use core::sync::atomic::{AtomicUsize, Ordering};
-
+#[allow(dead_code)]
 pub struct PerCpu {
     addr_space: *const AddrSpace,
     preempt_count: AtomicUsize,
@@ -24,7 +24,7 @@ lazy_static! {
         cpus
     };
 }
-
+#[allow(dead_code)]
 impl PerCpu {
     pub fn current() -> &'static PerCpu {
         &CPUS[0] // TODO: SMP

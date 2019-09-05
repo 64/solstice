@@ -23,7 +23,7 @@ struct Zone {
     num_pages: usize,
     order_list: [&'static mut [Block]; MAX_ORDER + 1],
 }
-
+#[allow(dead_code)]
 impl Zone {
     pub fn new(addr: PhysAddr, size: usize, blocks: &'static mut [Block]) -> Self {
         let num_pages = size / super::PAGE_SIZE;
@@ -150,6 +150,7 @@ impl core::fmt::Debug for Block {
     fn fmt(&self, fmt: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             Block::LargestFreeOrder(nzu) => {
+
                 fmt.write_fmt(format_args!("LargestFreeOrder({})", nzu.get() - 1))
             }
             Block::Used => fmt.write_str("Used"),
@@ -227,7 +228,7 @@ pub struct PhysAllocator {
 }
 
 pub static PMM: PhysAllocator = PhysAllocator::new();
-
+#[allow(dead_code)]
 impl PhysAllocator {
     const fn new() -> Self {
         Self {

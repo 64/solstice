@@ -30,5 +30,8 @@ pub fn kernel_main(info: &BootInfo) {
     debug!("ACPI initialized");
     drivers::acpi::enable(&mut acpi);
     debug!("ACPI enabled");
+
+    debug!("Nothing to do, shutting down...");
     drivers::acpi::shutdown(&mut acpi);
+    unreachable!();
 }

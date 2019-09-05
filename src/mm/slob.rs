@@ -73,7 +73,6 @@ unsafe fn alloc_inner(head: &mut Option<NonNull<Block>>, layout: Layout) -> *mut
     .expect("block layout creation failed");
 
     let alloc_len = layout.size() - offset;
-    let header_len = offset;
 
     debug_assert_eq!(offset, core::mem::size_of::<Block>());
 
@@ -182,7 +181,7 @@ impl Block {
 
     unsafe fn split_at(
         mut block: NonNull<Self>,
-        mut alloc_len: usize,
+        alloc_len: usize,
     ) -> (NonNull<Self>, NonNull<Self>) {
         let total_len = alloc_len + core::mem::size_of::<Block>();
         debug_assert!(block.as_mut().size >= total_len);

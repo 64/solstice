@@ -34,7 +34,7 @@ lazy_static! {
         }
     };
 }
-
+#[allow(dead_code)]
 impl AddrSpace {
     pub fn kernel() -> &'static AddrSpace {
         &*KERNEL

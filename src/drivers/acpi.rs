@@ -1,24 +1,18 @@
-use ::acpi::{AcpiHandler, AmlTable, PhysicalMapping, Fadt, Processor};
+use ::acpi::{AcpiHandler, AmlTable, PhysicalMapping};
 use aml::{AmlContext, AmlError, AmlValue};
 use core::ptr::NonNull;
 use x86_64::{PhysAddr, VirtAddr, instructions::port::{PortRead,PortWrite}};
-use aml::value::AmlValue::Package;
-use aml::value::AmlType;
 use lazy_static::__Deref;
-use intrusive_collections::IntrusivePointer;
-use core::borrow::{BorrowMut, Borrow};
-use alloc::vec::Vec;
-use core::marker::PhantomData;
 
 static mut SLP_TYPA:u64 = 0;
 pub fn init() -> ::acpi::Acpi {
-    let mut our_acpi = unsafe {acpi::search_for_rsdp_bios(&mut Acpi).expect("ACPI table parsing failed")};
+    let our_acpi = unsafe {acpi::search_for_rsdp_bios(&mut Acpi).expect("ACPI table parsing failed")};
 
     debug!("acpi: found tables");
     let mut ctx = AmlContext::new();
     match unsafe {core::ptr::read(&our_acpi.dsdt)} {
         Some(dsdt) => {
-            parse_table(&mut ctx, &dsdt);
+            parse_table(&mut ctx, &dsdt).expect("AML DSDT parsing failed");
             debug!("acpi: parsed dsdt");
         }
         None => {
@@ -31,9 +25,9 @@ pub fn init() -> ::acpi::Acpi {
     }
 
 
-    let mut name = aml::AmlName::from_str("_S5_").expect("Could not get AmlName");
+    let name = aml::AmlName::from_str("_S5_").expect("Could not get AmlName");
     let root = aml::AmlName::root();
-    let mut name = ctx.namespace.search(&name, &root).expect("Could not get actual name");
+    let name = ctx.namespace.search(&name, &root).expect("Could not get actual name");
     let v = ctx.namespace.get(name).expect("Could not get AmlValue");
     match v {
         AmlValue::Name(p) => {
@@ -57,22 +51,23 @@ pub fn init() -> ::acpi::Acpi {
 }
 pub fn enable(acpi: &mut ::acpi::Acpi) {
 
-    let fadt = unsafe { acpi.fadt.unwrap().as_ptr() };
-    let mut fadt = unsafe { fadt.clone().read() };
-    let mut readval:u16 = 0;
-    // SCI_EN is 1
-    readval = unsafe { PortRead::read_from_port(fadt.pm1a_control_block as u16) };
-    if (readval & 1 == 0) {
-        if (fadt.smi_cmd_port != 0 && fadt.acpi_enable != 0) {
+    let fadt = acpi.fadt
+        .unwrap()
+        .as_ptr()
+        .clone();
+    let fadt = unsafe {fadt.read()};
+    let mut readval:u16 = unsafe { PortRead::read_from_port(fadt.pm1a_control_block as u16) };
+    if readval & 1 == 0 {
+        if fadt.smi_cmd_port != 0 && fadt.acpi_enable != 0 {
             unsafe { PortWrite::write_to_port(fadt.smi_cmd_port as u16, fadt.acpi_enable); }
             readval = unsafe { PortRead::read_from_port(fadt.pm1a_control_block as u16) };
-            while (readval & 1 == 0) {
+            while readval & 1 == 0 {
                 readval = unsafe { PortRead::read_from_port(fadt.pm1a_control_block as u16) };
             }
 
-            if (fadt.pm1b_control_block != 0) {
+            if fadt.pm1b_control_block != 0 {
                 readval = unsafe { PortRead::read_from_port(fadt.pm1b_control_block as u16) };
-                while (readval & 1 == 0) {
+                while readval & 1 == 0 {
                     readval = unsafe { PortRead::read_from_port(fadt.pm1b_control_block as u16) };
                 }
             }
@@ -86,11 +81,14 @@ pub fn enable(acpi: &mut ::acpi::Acpi) {
 
 }
 pub fn shutdown(acpi: &mut ::acpi::Acpi) {
-    let fadt = unsafe { acpi.fadt.unwrap().as_ptr() };
-    let mut fadt = unsafe { fadt.clone().read() };
+    let fadt = acpi.fadt
+        .unwrap()
+        .as_ptr()
+        .clone();
+    let fadt = unsafe {fadt.read()};
     loop {
         unsafe { PortWrite::write_to_port(fadt.pm1a_control_block as u16, (SLP_TYPA | (1 << 13)) as u16); }
-        if (fadt.pm1b_control_block != 0) {
+        if fadt.pm1b_control_block != 0 {
             unsafe { PortWrite::write_to_port(fadt.pm1b_control_block as u16, (SLP_TYPA | (1 << 13)) as u16); }
         }
         //wait till dead
