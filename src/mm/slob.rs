@@ -63,13 +63,13 @@ unsafe impl GlobalAlloc for SlobAllocator {
 }
 
 unsafe fn alloc_inner(head: &mut Option<NonNull<Block>>, layout: Layout) -> *mut u8 {
+    // TODO: Clean this up (can we use padding_needed_for?)
     let (layout, offset) = Layout::from_size_align(
         core::mem::size_of::<Block>(),
         core::mem::align_of::<Block>(),
     )
-    .and_then(|l| l.pad_to_align())
-    .and_then(|l| l.extend(layout))
-    .and_then(|(l, o)| l.pad_to_align().map(|l| (l, o)))
+    .and_then(|l| l.pad_to_align().extend(layout))
+    .map(|(l, o)| (l.pad_to_align(), o))
     .expect("block layout creation failed");
 
     let alloc_len = layout.size() - offset;

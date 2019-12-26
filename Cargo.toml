@@ -33,10 +33,12 @@ panic = "abort"
 [dependencies]
 x86_64 = { path = "x86_64" }
 bootloader = { path = "bootloader", features = ["map_physical_memory"] }
-log = "0.4.6"
+log = "0.4.8"
 volatile = "0.2.6"
-lazy_static = { version = "1", features = ["spin_no_std"] }
-intrusive-collections = { version = "0.8.1", features = ["nightly"] }
-arrayvec = { version = "0.4.10", default-features = false }
+lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
+intrusive-collections = { version = "0.8.3", features = ["nightly"] }
+arrayvec = { version = "0.5.1", default-features = false }
 acpi = "0.4.0"
 aml = "0.4.0"
+#acpi = { path = "../acpi/acpi/" }
+#aml = { path = "../acpi/aml/" }
