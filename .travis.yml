@@ -27,7 +27,7 @@ install:
 
 before_script:
   - rustup component add rust-src llvm-tools-preview
-  - cargo install bootimage cargo-xbuild cargo-cache --debug -Z install-upgrade
+  - cargo install bootimage cargo-xbuild cargo-cache --debug
 
 script:
   - cargo xbuild
