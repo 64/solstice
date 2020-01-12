@@ -77,7 +77,7 @@ unsafe fn alloc_inner(head: &mut Option<NonNull<Block>>, layout: Layout) -> *mut
 
     debug_assert_eq!(offset, core::mem::size_of::<Block>());
 
-    if layout.size() > super::PAGE_SIZE {
+    if layout.size() > super::PAGE_SIZE as usize {
         trace!("slob: large {} byte allocation", layout.size());
     }
 
@@ -106,7 +106,7 @@ unsafe fn alloc_inner(head: &mut Option<NonNull<Block>>, layout: Layout) -> *mut
             curr_opt = curr.as_mut().next;
         }
 
-        morecore(head, (layout.size() + super::PAGE_SIZE) / super::PAGE_SIZE);
+        morecore(head, (layout.size() as u64 + super::PAGE_SIZE) / super::PAGE_SIZE);
     }
 
     unreachable!();
@@ -152,15 +152,13 @@ unsafe fn dealloc_inner(head: &mut Option<NonNull<Block>>, ptr: *mut u8, layout:
     }
 }
 
-fn morecore(head: &mut Option<NonNull<Block>>, num_pages: usize) {
+fn morecore(head: &mut Option<NonNull<Block>>, num_pages: u64) {
     unsafe {
-        let addr: VirtAddr =
-            PhysAllocator::alloc(num_pages.next_power_of_two().trailing_zeros() as u8)
-                .start
-                .start_address()
-                .into();
+        let addr =
+            super::phys_to_kernel_virt(PhysAllocator::alloc(num_pages.next_power_of_two().trailing_zeros() as u8)
+                .start.start_address());
         let p_block = addr.as_mut_ptr::<Block>();
-        let size = num_pages * super::PAGE_SIZE - core::mem::size_of::<Block>();
+        let size = (num_pages * super::PAGE_SIZE) as usize - core::mem::size_of::<Block>();
         (*p_block).size = size;
         (*p_block).next = None;
 
@@ -200,7 +198,7 @@ impl Block {
     unsafe fn try_merge(mut left: NonNull<Self>, mut right: NonNull<Self>) -> bool {
         debug_assert!(left < right);
         let mask = !(super::PAGE_SIZE - 1);
-        if left.as_ptr() as usize & mask != right.as_ptr() as usize & mask {
+        if left.as_ptr() as u64 & mask != right.as_ptr() as u64 & mask {
             // The blocks are in separate pages. Since we allocate each physical page as
             // order 0, we can't merge these.
             false

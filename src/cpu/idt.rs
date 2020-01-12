@@ -7,7 +7,7 @@ use crate::cpu::gdt::DOUBLE_FAULT_IST_INDEX;
 lazy_static! {
     static ref IDT: idt::InterruptDescriptorTable = {
         let mut idt = idt::InterruptDescriptorTable::new();
-        idt.divide_by_zero.set_handler_fn(divide_by_zero_handler);
+        idt.divide_error.set_handler_fn(divide_error_handler);
         idt.debug.set_handler_fn(debug_handler);
         idt.non_maskable_interrupt.set_handler_fn(non_maskable_interrupt_handler);
         idt.breakpoint.set_handler_fn(breakpoint_handler);
@@ -40,7 +40,7 @@ test_case!(int3_handler, {
     x86_64::instructions::interrupts::int3();
 });
 
-extern "x86-interrupt" fn divide_by_zero_handler(frame: &mut idt::InterruptStackFrame) {
+extern "x86-interrupt" fn divide_error_handler(frame: &mut idt::InterruptStackFrame) {
     panic!("EXCEPTION: Zero Division\n{:#?}", frame);
 }
 
@@ -72,7 +72,7 @@ extern "x86-interrupt" fn device_not_available_handler(frame: &mut idt::Interrup
     panic!("EXCEPTION: Device Not Available\n{:#?}", frame);
 }
 
-extern "x86-interrupt" fn double_fault_handler(frame: &mut idt::InterruptStackFrame, error_code: u64) {
+extern "x86-interrupt" fn double_fault_handler(frame: &mut idt::InterruptStackFrame, error_code: u64) -> ! {
     panic!("EXCEPTION: Double Fault with error code {}\n{:#?}", error_code, frame);
 }
 
@@ -104,7 +104,7 @@ extern "x86-interrupt" fn alignment_check_handler(frame: &mut idt::InterruptStac
     panic!("EXCEPTION: Alignment Check with error code {}\n{:#?}", error_code, frame);
 }
 
-extern "x86-interrupt" fn machine_check_handler(frame: &mut idt::InterruptStackFrame) {
+extern "x86-interrupt" fn machine_check_handler(frame: &mut idt::InterruptStackFrame) -> ! {
     panic!("EXCEPTION: Machine Check\n{:#?}", frame);
 }
 

@@ -1,10 +1,12 @@
-use acpi::{AcpiHandler, AmlTable, PhysicalMapping};
+use acpi::{Acpi, AcpiHandler, AmlTable, PhysicalMapping};
 use aml::{AmlContext, AmlError};
 use core::ptr::NonNull;
 use x86_64::{PhysAddr, VirtAddr};
 
-pub fn init() {
-    let acpi = unsafe { acpi::search_for_rsdp_bios(&mut Acpi).expect("ACPI table parsing failed") };
+pub fn init() -> Acpi {
+    let acpi = unsafe {
+        acpi::search_for_rsdp_bios(&mut DummyAcpiHandler).expect("ACPI table parsing failed")
+    };
 
     debug!("acpi: found tables");
 
@@ -21,23 +23,25 @@ pub fn init() {
     }
 
     debug!("acpi: done!");
+
+    acpi
 }
 
 fn parse_table(ctx: &mut AmlContext, table: &AmlTable) -> Result<(), AmlError> {
-    let virt = VirtAddr::from(PhysAddr::new(table.address));
+    let virt = VirtAddr::from(PhysAddr::new(table.address as u64));
 
     ctx.parse_table(unsafe { core::slice::from_raw_parts(virt.as_ptr(), table.length as usize) })
 }
 
-struct Acpi;
+struct DummyAcpiHandler;
 
-impl AcpiHandler for Acpi {
+impl AcpiHandler for DummyAcpiHandler {
     fn map_physical_region<T>(
         &mut self,
         physical_address: usize,
         size: usize,
     ) -> PhysicalMapping<T> {
-        let start_virt = VirtAddr::from(PhysAddr::new(physical_address));
+        let start_virt = VirtAddr::from(PhysAddr::new(physical_address as u64));
 
         PhysicalMapping {
             physical_start: physical_address,
