@@ -67,10 +67,11 @@ unsafe fn alloc_inner(head: &mut Option<NonNull<Block>>, layout: Layout) -> *mut
         core::mem::size_of::<Block>(),
         core::mem::align_of::<Block>(),
     )
-    .and_then(|l| l.pad_to_align())
+    .and_then(|l| Ok(l.pad_to_align()))
     .and_then(|l| l.extend(layout))
-    .and_then(|(l, o)| l.pad_to_align().map(|l| (l, o)))
-    .expect("block layout creation failed");
+        .expect("block layout creation failed");
+    //.and_then(|(l, o)| l.pad_to_align().map(|l| (l, o)))
+    let layout = layout.pad_to_align();
 
     let alloc_len = layout.size() - offset;
 
