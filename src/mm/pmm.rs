@@ -13,20 +13,20 @@ use x86_64::{
     VirtAddr,
 };
 
-pub const MAX_ZONES: usize = 64;
-pub const MAX_ORDER: usize = 11;
-pub const MAX_ORDER_PAGES: usize = 1 << 11;
+pub const MAX_ZONES: u64 = 64;
+pub const MAX_ORDER: u64 = 11;
+pub const MAX_ORDER_PAGES: u64 = 1 << 11;
 
 #[derive(Debug)]
 struct Zone {
     pages: PhysFrameRange,
-    num_pages: usize,
-    order_list: [&'static mut [Block]; MAX_ORDER + 1],
+    num_pages: u64,
+    order_list: [&'static mut [Block]; MAX_ORDER as usize + 1],
 }
 #[allow(dead_code)]
 impl Zone {
     pub fn new(addr: PhysAddr, size: usize, blocks: &'static mut [Block]) -> Self {
-        let num_pages = size / super::PAGE_SIZE;
+        let num_pages = (size / super::PAGE_SIZE as usize) as u64;
 
         let mut order_list = Self::split_region(num_pages, blocks);
 
@@ -56,9 +56,9 @@ impl Zone {
     }
 
     fn split_region(
-        num_pages: usize,
+        num_pages: u64,
         mut blocks: &'static mut [Block],
-    ) -> [&'static mut [Block]; MAX_ORDER + 1] {
+    ) -> [&'static mut [Block]; MAX_ORDER as usize + 1] {
         let max_order_blocks = x86_64::align_up(num_pages, MAX_ORDER_PAGES) / MAX_ORDER_PAGES;
 
         // TODO: This whole section is a bit of a hack
@@ -67,8 +67,8 @@ impl Zone {
         ];
 
         for (order, block_slice) in tmp.iter_mut().rev().enumerate() {
-            let blocks_in_layer = max_order_blocks * 2_usize.pow(order as u32);
-            let (left, right) = blocks.split_at_mut(blocks_in_layer);
+            let blocks_in_layer = max_order_blocks * 2u64.pow(order as u32);
+            let (left, right) = blocks.split_at_mut(blocks_in_layer as usize);
             *block_slice = Some(left);
             blocks = right;
         }
@@ -77,12 +77,12 @@ impl Zone {
     }
 
     // Iterate back up, setting parents to have the correct largest order value
-    fn update_tree(&mut self, start_order: u8, mut idx: usize) {
+    fn update_tree(&mut self, start_order: u8, mut idx: u64) {
         for current_order in start_order + 1..=MAX_ORDER as u8 {
             let left_idx = idx & !1;
             let left = self.order_list[current_order as usize - 1][left_idx];
             let right = self.order_list[current_order as usize - 1][left_idx + 1];
-            self.order_list[current_order as usize][idx / 2] = Block::parent_state(left, right);
+            self.order_list[current_order as usize][idx as usize / 2] = Block::parent_state(left, right);
             idx /= 2;
         }
     }
@@ -90,37 +90,37 @@ impl Zone {
     fn alloc(&mut self, order: u8) -> Option<PhysFrameRange> {
         // TODO: This can be optimised quite a bit (use linked lists?)
         // Find top level index
-        let mut idx = self.order_list[MAX_ORDER]
+        let mut idx = self.order_list[MAX_ORDER as usize]
             .iter()
             .enumerate()
             .find(|(_, blk)| blk.larger_than(order))?
-            .0;
+            .0 as usize;
 
         for current_order in (order..(MAX_ORDER as u8)).rev() {
             idx *= 2;
 
-            idx = if self.order_list[current_order as usize][idx].larger_than(order) {
+            idx = if self.order_list[current_order as usize][idx as usize].larger_than(order) {
                 idx
-            } else if self.order_list[current_order as usize][idx + 1].larger_than(order) {
+            } else if self.order_list[current_order as usize][idx as usize + 1].larger_than(order) {
                 idx + 1
             } else {
                 unreachable!();
             };
         }
 
-        self.order_list[order as usize][idx] = Block::Used;
+        self.order_list[order as usize][idx as usize] = Block::Used;
         self.update_tree(order, idx);
 
-        let start_frame = self.pages.start + 2usize.pow(order as u32) * idx;
-        let end_frame = self.pages.start + 2usize.pow(order as u32) * (idx + 1);
+        let start_frame = self.pages.start + 2u64.pow(order as u32) * idx;
+        let end_frame = self.pages.start + 2u64.pow(order as u32) * (idx + 1);
 
         // Zero out region
         unsafe {
-            let page: *mut u8 = VirtAddr::from(start_frame.start_address()).as_mut_ptr();
+            let page: *mut u8 = super::phys_to_kernel_virt(start_frame.start_address()).as_mut_ptr();
             core::intrinsics::write_bytes(
                 page,
                 if cfg!(debug_assertions) { 0xB8 } else { 0x00 },
-                super::PAGE_SIZE * 2usize.pow(order as u32),
+                (super::PAGE_SIZE * 2u64.pow(order as u32)) as usize,
             )
         };
 
@@ -129,13 +129,13 @@ impl Zone {
 
     fn free(&mut self, range: PhysFrameRange) {
         let order = range.len().trailing_zeros();
-        debug_assert!(order as usize <= MAX_ORDER);
+        debug_assert!(order <= MAX_ORDER);
         debug_assert!(self.pages.contains_range(range));
 
         let idx = (range.start - self.pages.start) / range.len();
-        debug_assert_eq!(self.order_list[order as usize][idx], Block::Used);
+        debug_assert_eq!(self.order_list[order as usize][idx as usize], Block::Used);
 
-        self.order_list[order as usize][idx] = Block::from_order(order as u8);
+        self.order_list[order as usize][idx as usize] = Block::from_order(order as u8);
         self.update_tree(order as u8, idx);
     }
 }
@@ -192,14 +192,14 @@ impl Block {
         }
     }
 
-    fn new_blocks_for_region(region: Region, usable_pages: usize) -> &'static mut [Block] {
+    fn new_blocks_for_region(region: Region, usable_pages: u64) -> &'static mut [Block] {
         let block_count = blocks_in_region(usable_pages);
 
         let mut rg_allocator = RegionBumpAllocator::from(region);
         let ptr = rg_allocator
             .alloc(
                 Layout::from_size_align(
-                    block_count * mem::size_of::<Block>(),
+                    block_count as usize * mem::size_of::<Block>(),
                     mem::align_of::<Block>(),
                 )
                 .unwrap(),
@@ -207,14 +207,14 @@ impl Block {
             .expect("failed to allocate from region");
 
         debug_assert_eq!(
-            ptr.as_ptr() as usize,
-            x86_64::align_down(ptr.as_ptr() as usize, super::PAGE_SIZE)
+            ptr.as_ptr() as u64,
+            x86_64::align_down(ptr.as_ptr() as u64, super::PAGE_SIZE)
         );
 
         unsafe {
             // Zero out the memory, which corresponds to Block::Used
-            core::intrinsics::write_bytes(ptr.as_ptr(), 0, block_count);
-            slice::from_raw_parts_mut(ptr.as_ptr() as *mut Block, block_count)
+            core::intrinsics::write_bytes(ptr.as_ptr(), 0, block_count as usize);
+            slice::from_raw_parts_mut(ptr.as_ptr() as *mut Block, block_count as usize)
         }
     }
 }
@@ -224,7 +224,7 @@ impl Block {
 // We use an option here because ArrayVec doesn't have a const constructor. This
 // could be done with MaybeUninit in future to avoid that check
 pub struct PhysAllocator {
-    zones: RwSpinLock<Option<ArrayVec<[SpinLock<Zone>; MAX_ZONES]>>>,
+    zones: RwSpinLock<Option<ArrayVec<[SpinLock<Zone>; MAX_ZONES as usize]>>>,
 }
 
 pub static PMM: PhysAllocator = PhysAllocator::new();
@@ -240,22 +240,22 @@ impl PhysAllocator {
         let mut zones = ArrayVec::new();
 
         for rg in map {
-            let pages_in_rg = rg.size / super::PAGE_SIZE;
+            let pages_in_rg = rg.size as u64 / super::PAGE_SIZE;
             let usable_pages = usable_pages(pages_in_rg);
             if usable_pages <= 1 {
                 continue;
             }
 
-            let (reserved, usable) = rg.split_at((pages_in_rg - usable_pages) * super::PAGE_SIZE);
+            let (reserved, usable) = rg.split_at(((pages_in_rg - usable_pages) * super::PAGE_SIZE) as usize);
             let zone = Zone::new(
                 usable.addr.into(),
-                x86_64::align_down(usable.size, super::PAGE_SIZE),
+                x86_64::align_down(usable.size as u64, super::PAGE_SIZE) as usize,
                 Block::new_blocks_for_region(reserved, usable_pages),
             );
 
             zones.push(SpinLock::new(zone));
 
-            assert_eq!(usable.addr.as_usize() & (super::PAGE_SIZE - 1), 0); // Make sure it's aligned
+            assert_eq!(usable.addr.as_u64() & (super::PAGE_SIZE - 1), 0); // Make sure it's aligned
         }
 
         *PMM.zones.write() = Some(zones);
@@ -309,19 +309,19 @@ impl PhysAllocator {
 // Subtract one extra page, just to be safe about padding and alignment
 // TODO: should really be blocks_in_region(usable_pages), but this hugely
 // complicates the math
-fn usable_pages(total_pages: usize) -> usize {
-    (4096 * total_pages as usize - blocks_in_region(total_pages))
-        / (mem::size_of::<PageInfo>() + 4096)
+fn usable_pages(total_pages: u64) -> u64 {
+    (4096 * total_pages - blocks_in_region(total_pages))
+        / (mem::size_of::<PageInfo>() as u64 + 4096)
         - 2
 }
 
-fn blocks_in_region(pages: usize) -> usize {
+fn blocks_in_region(pages: u64) -> u64 {
     let max_order_blocks = x86_64::align_up(pages, MAX_ORDER_PAGES) / MAX_ORDER_PAGES;
     // Evaluate the geometric series
     // a = max_order_blocks
     // r = 2
     // n = max_order + 1
-    max_order_blocks * (2usize.pow(MAX_ORDER as u32 + 1) - 1)
+    max_order_blocks * (2u64.pow(MAX_ORDER as u32 + 1) - 1)
 }
 
 #[cfg(test)]
