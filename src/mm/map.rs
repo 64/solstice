@@ -7,7 +7,7 @@ use core::{
     ptr::{self, NonNull},
 };
 use x86_64::{
-    structures::paging::{FrameAllocator, PageSize, PageTableFlags, PhysFrame, Size4KiB},
+    structures::paging::{FrameAllocator, PageSize, PageTableFlags, UnusedPhysFrame, PhysFrame, Size4KiB},
     PhysAddr,
     VirtAddr,
 };
@@ -107,7 +107,7 @@ impl MemoryMap {
 }
 
 unsafe impl FrameAllocator<Size4KiB> for MemoryMap {
-    fn allocate_frame(&mut self) -> Option<PhysFrame> {
+    fn allocate_frame(&mut self) -> Option<UnusedPhysFrame> {
         let (idx, found_region) = self
             .regions
             .iter_mut()
@@ -137,7 +137,7 @@ unsafe impl FrameAllocator<Size4KiB> for MemoryMap {
             )
         };
 
-        Some(out)
+        unsafe { Some(UnusedPhysFrame::new(out)) }
     }
 }
 

@@ -2,7 +2,7 @@ use crate::{ds::RwSpinLock, mm::pmm::PhysAllocator};
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{
-        frame::PhysFrame,
+        UnusedPhysFrame,
         mapper::{MapToError, MapperAllSizes, MapperFlush},
         page::Size4KiB,
         FrameAllocator,
@@ -25,11 +25,11 @@ unsafe impl Sync for AddrSpace {}
 lazy_static! {
     static ref KERNEL: AddrSpace = {
         let (table_frame, _) = Cr3::read();
-        let table_virt: VirtAddr = table_frame.start_address().into();
+        let table_virt = super::phys_to_kernel_virt(table_frame.start_address());
 
         AddrSpace {
             table: RwSpinLock::new(unsafe {
-                OffsetPageTable::new(&mut *table_virt.as_mut_ptr(), super::PHYS_OFFSET)
+                OffsetPageTable::new(&mut *table_virt.as_mut_ptr(), VirtAddr::new(super::PHYS_OFFSET))
             }),
         }
     };
@@ -48,7 +48,7 @@ impl AddrSpace {
     ) -> Result<MapperFlush<Size4KiB>, MapToError> {
         struct PhysAllocatorProxy;
         unsafe impl FrameAllocator<Size4KiB> for PhysAllocatorProxy {
-            fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
+            fn allocate_frame(&mut self) -> Option<UnusedPhysFrame<Size4KiB>> {
                 Some(PhysAllocator::alloc(0).start)
             }
         }
@@ -68,7 +68,7 @@ impl AddrSpace {
         unsafe {
             self.table.write().map_to(
                 Page::containing_address(virt),
-                PhysFrame::containing_address(phys),
+                UnusedPhysFrame::containing_address(phys),
                 flags,
                 alloc,
             )
