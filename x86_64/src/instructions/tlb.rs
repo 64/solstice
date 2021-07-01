@@ -5,7 +5,7 @@ use crate::VirtAddr;
 /// Invalidate the given address in the TLB using the `invlpg` instruction.
 #[inline]
 pub fn flush(addr: VirtAddr) {
-    unsafe { asm!("invlpg ($0)" :: "r" (addr.as_usize()) : "memory") };
+    unsafe { llvm_asm!("invlpg ($0)" :: "r" (addr.as_usize()) : "memory") };
 }
 
 /// Invalidate the TLB completely by reloading the CR3 register.

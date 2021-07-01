@@ -76,7 +76,7 @@ mod x86_64 {
     /// Returns the raw current value of the RFLAGS register.
     pub fn read_raw() -> u64 {
         let r: u64;
-        unsafe { asm!("pushfq; popq $0" : "=r"(r) :: "memory") };
+        unsafe { llvm_asm!("pushfq; popq $0" : "=r"(r) :: "memory") };
         r
     }
 
@@ -93,6 +93,6 @@ mod x86_64 {
     ///
     /// Does not preserve any bits, including reserved bits.
     pub fn write_raw(val: u64) {
-        unsafe { asm!("pushq $0; popfq" :: "r"(val) : "memory" "flags") };
+        unsafe { llvm_asm!("pushq $0; popfq" :: "r"(val) : "memory" "flags") };
     }
 }

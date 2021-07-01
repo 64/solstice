@@ -77,7 +77,7 @@ mod x86_64 {
         pub fn read_raw() -> u64 {
             let value: u64;
             unsafe {
-                asm!("mov %cr0, $0" : "=r" (value));
+                llvm_asm!("mov %cr0, $0" : "=r" (value));
             }
             value
         }
@@ -99,7 +99,7 @@ mod x86_64 {
         /// Does _not_ preserve any values, including reserved fields. Unsafe because it's possible to violate memory
         /// safety by e.g. disabling paging.
         pub unsafe fn write_raw(value: u64) {
-            asm!("mov $0, %cr0" :: "r" (value) : "memory")
+            llvm_asm!("mov $0, %cr0" :: "r" (value) : "memory")
         }
 
         /// Updates CR0 flags.
@@ -121,7 +121,7 @@ mod x86_64 {
         pub fn read() -> VirtAddr {
             let value: usize;
             unsafe {
-                asm!("mov %cr2, $0" : "=r" (value));
+                llvm_asm!("mov %cr2, $0" : "=r" (value));
             }
             VirtAddr::new(value)
         }
@@ -132,7 +132,7 @@ mod x86_64 {
         pub fn read() -> (PhysFrame, Cr3Flags) {
             let value: usize;
             unsafe {
-                asm!("mov %cr3, $0" : "=r" (value));
+                llvm_asm!("mov %cr3, $0" : "=r" (value));
             }
             let flags = Cr3Flags::from_bits_truncate(value as u64);
             let addr = PhysAddr::new(value & 0x_000f_ffff_ffff_f000);
@@ -148,7 +148,7 @@ mod x86_64 {
         pub unsafe fn write(frame: PhysFrame, flags: Cr3Flags) {
             let addr = frame.start_address();
             let value = addr.as_usize() as u64 | flags.bits();
-            asm!("mov $0, %cr3" :: "r" (value) : "memory")
+            llvm_asm!("mov $0, %cr3" :: "r" (value) : "memory")
         }
     }
 }

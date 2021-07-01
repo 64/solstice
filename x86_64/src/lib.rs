@@ -2,11 +2,12 @@
 //! and access to various system registers.
 
 #![feature(const_fn)]
-#![feature(asm)]
+#![feature(llvm_asm)]
 #![feature(abi_x86_interrupt)]
 #![cfg_attr(not(test), no_std)]
 #![deny(missing_debug_implementations)]
-
+#![feature(const_fn_fn_ptr_basics)]
+#![feature(const_mut_refs)]
 /// Provides the non-standard-width integer types `u2`–`u63`.
 ///
 /// We use these integer types in various APIs, for example `u9` for page tables indices.

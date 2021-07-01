@@ -9,7 +9,7 @@ pub use crate::structures::DescriptorTablePointer;
 /// interface to loading a GDT.
 #[inline]
 pub unsafe fn lgdt(gdt: &DescriptorTablePointer) {
-    asm!("lgdt ($0)" :: "r" (gdt) : "memory");
+    llvm_asm!("lgdt ($0)" :: "r" (gdt) : "memory");
 }
 
 /// Load an IDT. Use the
@@ -17,11 +17,11 @@ pub unsafe fn lgdt(gdt: &DescriptorTablePointer) {
 /// interface to loading an IDT.
 #[inline]
 pub unsafe fn lidt(idt: &DescriptorTablePointer) {
-    asm!("lidt ($0)" :: "r" (idt) : "memory");
+    llvm_asm!("lidt ($0)" :: "r" (idt) : "memory");
 }
 
 /// Load the task state register using the `ltr` instruction.
 #[inline]
 pub unsafe fn load_tss(sel: SegmentSelector) {
-    asm!("ltr $0" :: "r" (sel.0));
+    llvm_asm!("ltr $0" :: "r" (sel.0));
 }

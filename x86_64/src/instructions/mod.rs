@@ -13,7 +13,7 @@ pub mod tlb;
 #[inline]
 pub fn hlt() {
     unsafe {
-        asm!("hlt" :::: "volatile");
+        llvm_asm!("hlt" :::: "volatile");
     }
 }
 
@@ -22,6 +22,6 @@ pub fn hlt() {
 #[inline]
 pub fn bochs_breakpoint() {
     unsafe {
-        asm!("xchgw %bx, %bx" :::: "volatile");
+        llvm_asm!("xchgw %bx, %bx" :::: "volatile");
     }
 }

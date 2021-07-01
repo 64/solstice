@@ -13,7 +13,7 @@ pub fn are_enabled() -> bool {
 #[inline]
 pub fn enable() {
     unsafe {
-        asm!("sti" :::: "volatile");
+        llvm_asm!("sti" :::: "volatile");
     }
 }
 
@@ -23,7 +23,7 @@ pub fn enable() {
 #[inline]
 pub fn disable() {
     unsafe {
-        asm!("cli" :::: "volatile");
+        llvm_asm!("cli" :::: "volatile");
     }
 }
 
@@ -75,7 +75,7 @@ where
 #[inline]
 pub fn int3() {
     unsafe {
-        asm!("int3" :::: "volatile");
+        llvm_asm!("int3" :::: "volatile");
     }
 }
 
@@ -87,6 +87,6 @@ pub fn int3() {
 #[macro_export]
 macro_rules! software_interrupt {
     ($x:expr) => {{
-        asm!("int $0" :: "N" ($x) :: "volatile");
+        llvm_asm!("int $0" :: "N" ($x) :: "volatile");
     }};
 }

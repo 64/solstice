@@ -52,15 +52,15 @@ mod x86_64 {
         /// Read 64 bits msr register.
         pub unsafe fn read(&self) -> u64 {
             let (high, low): (u32, u32);
-            asm!("rdmsr" : "={eax}" (low), "={edx}" (high) : "{ecx}" (self.0) : "memory" : "volatile");
+            llvm_asm!("rdmsr" : "={eax}" (low), "={edx}" (high) : "{ecx}" (self.0) : "memory" : "volatile");
             ((high as u64) << 32) | (low as u64)
         }
 
         /// Write 64 bits to msr register.
         pub unsafe fn write(&mut self, value: u64) {
-            let low = value as u32;
+            let low = value.clone() as u32;
             let high = (value >> 32) as u32;
-            asm!("wrmsr" :: "{ecx}" (self.0), "{eax}" (low), "{edx}" (high) : "memory" : "volatile" );
+            llvm_asm!("wrmsr" :: "{ecx}" (self.0), "{eax}" (low), "{edx}" (high) : "memory" : "volatile" );
         }
     }
 
