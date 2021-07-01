@@ -22,7 +22,6 @@ extern crate alloc;
 
 #[macro_use]
 mod macros;
-
 mod cpu;
 mod drivers;
 mod ds;

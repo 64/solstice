@@ -8,7 +8,6 @@ use bootloader::bootinfo::BootInfo;
 pub fn kernel_main(info: &BootInfo) {
     drivers::serial::init();
     drivers::vga::text_mode::init().unwrap();
-
     #[rustfmt::skip]
     {
         println!("  _____       _     _   _             Developed by:");
