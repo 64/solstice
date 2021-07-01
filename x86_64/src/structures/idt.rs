@@ -367,7 +367,6 @@ pub struct InterruptDescriptorTable {
     ///   instruction pointer points to the instruction after the INTn.
     interrupts: [Entry<HandlerFunc>; 256 - 32],
 }
-
 impl InterruptDescriptorTable {
     /// Creates a new IDT filled with non-present entries.
     pub const fn new() -> InterruptDescriptorTable {
