@@ -3,10 +3,14 @@ use aml::{AmlContext, AmlError, AmlValue};
 use core::ptr::NonNull;
 use x86_64::{PhysAddr, VirtAddr, instructions::port::{PortRead,PortWrite}};
 use lazy_static::__Deref;
+use acpi::{AcpiTables, AcpiError, InterruptModel};
+use acpi::sdt::Signature;
+use acpi::platform::address::GenericAddress;
+use acpi::platform::ProcessorInfo;
 
 static mut SLP_TYPA:u64 = 0;
-pub fn init() -> ::acpi::Acpi {
-    let our_acpi = unsafe {acpi::search_for_rsdp_bios(&mut Acpi).expect("ACPI table parsing failed")};
+pub fn init() -> AcpiObject {
+    let our_acpi = unsafe {acpi::AcpiTables::search_for_rsdp_bios(Acpi)}.expect("ACPI table parsing failed");
 
     debug!("acpi: found tables");
     let mut ctx = AmlContext::new();
@@ -47,28 +51,28 @@ pub fn init() -> ::acpi::Acpi {
             unreachable!();
         }
     }
-    return our_acpi;
+    return AcpiObject::new(our_acpi);
 }
-pub fn enable(acpi: &mut ::acpi::Acpi) {
-
-    let fadt = acpi.fadt
-        .unwrap()
-        .as_ptr()
-        .clone();
-    let fadt = unsafe {fadt.read()};
-    let mut readval:u16 = unsafe { PortRead::read_from_port(fadt.pm1a_control_block as u16) };
+pub fn enable(acpi: &mut AcpiObject) {
+    let pm1a_control_block = unsafe {*(acpi.fadt.pm1a_control_block()
+        .expect("Could not get pm1a_control_block of ACPI!")
+        .address as *const u16)};
+    let mut readval:u16 = unsafe { PortRead::read_from_port(pm1a_control_block) };
     if readval & 1 == 0 {
-        if fadt.smi_cmd_port != 0 && fadt.acpi_enable != 0 {
-            unsafe { PortWrite::write_to_port(fadt.smi_cmd_port as u16, fadt.acpi_enable); }
-            readval = unsafe { PortRead::read_from_port(fadt.pm1a_control_block as u16) };
+        if acpi.fadt.smi_cmd_port != 0 && acpi.fadt.acpi_enable != 0 {
+            unsafe { PortWrite::write_to_port(acpi.fadt.smi_cmd_port as u16, acpi.fadt.acpi_enable); }
+            readval = unsafe { PortRead::read_from_port(pm1a_control_block) };
             while readval & 1 == 0 {
-                readval = unsafe { PortRead::read_from_port(fadt.pm1a_control_block as u16) };
+                readval = unsafe { PortRead::read_from_port(pm1a_control_block) };
             }
-
-            if fadt.pm1b_control_block != 0 {
-                readval = unsafe { PortRead::read_from_port(fadt.pm1b_control_block as u16) };
-                while readval & 1 == 0 {
-                    readval = unsafe { PortRead::read_from_port(fadt.pm1b_control_block as u16) };
+            match acpi.fadt.pm1b_control_block().expect("Could not get pm1b_control_block") {
+                None => {}
+                Some(pm1b_control_block_addr) => {
+                    let pm1b_control_block = unsafe {*(pm1b_control_block_addr.address as *const u16)};
+                    readval = unsafe { PortRead::read_from_port(pm1b_control_block as u16) };
+                    while readval & 1 == 0 {
+                        readval = unsafe { PortRead::read_from_port(pm1b_control_block as u16) };
+                    }
                 }
             }
             return;
@@ -80,43 +84,73 @@ pub fn enable(acpi: &mut ::acpi::Acpi) {
     }
 
 }
-pub fn shutdown(acpi: &mut ::acpi::Acpi) {
-    let fadt = acpi.fadt
-        .unwrap()
-        .as_ptr()
-        .clone();
-    let fadt = unsafe {fadt.read()};
+pub fn shutdown(acpi: &mut AcpiObject) {
+    let pm1a_control_block = unsafe {*(acpi.fadt.pm1a_control_block()
+        .expect("Could not get pm1a_control_block of ACPI!")
+        .address as *const u16)};
     loop {
-        unsafe { PortWrite::write_to_port(fadt.pm1a_control_block as u16, (SLP_TYPA | (1 << 13)) as u16); }
-        if fadt.pm1b_control_block != 0 {
-            unsafe { PortWrite::write_to_port(fadt.pm1b_control_block as u16, (SLP_TYPA | (1 << 13)) as u16); }
+        unsafe { PortWrite::write_to_port(pm1a_control_block as u16, (SLP_TYPA | (1 << 13)) as u16); }
+        match acpi.fadt.pm1b_control_block().expect("Could not get pm1b_control_block") {
+            None => {}
+            Some(pm1b_control_block_addr) => {
+                let pm1b_control_block = unsafe {*(pm1b_control_block_addr.address as *const u16)};
+                unsafe { PortWrite::write_to_port(pm1b_control_block as u16, (SLP_TYPA | (1 << 13)) as u16); }
+            }
         }
         //wait till dead
     }
 }
 fn parse_table(ctx: &mut AmlContext, table: &AmlTable) -> Result<(), AmlError> {
-    let virt = VirtAddr::from(PhysAddr::new(table.address));
-
+    let virt = VirtAddr::new(table.address as u64);
     ctx.parse_table(unsafe { core::slice::from_raw_parts(virt.as_ptr(), table.length as usize) })
 }
 
-struct Acpi;
-
+pub struct Acpi;
+impl Clone for Acpi {
+    fn clone(&self) -> Self {
+        Acpi
+    }
+}
 impl AcpiHandler for Acpi {
-    fn map_physical_region<T>(
-        &mut self,
+    unsafe fn map_physical_region<T>(
+        &self,
         physical_address: usize,
         size: usize,
-    ) -> PhysicalMapping<T> {
-        let start_virt = VirtAddr::from(PhysAddr::new(physical_address));
+    ) -> PhysicalMapping<Self, T> {
+        let start_virt = VirtAddr::new(physical_address as u64);
+        PhysicalMapping::new(physical_address, NonNull::new(start_virt.as_mut_ptr()).expect("acpi mapped null ptr"), size, size, Acpi)
 
-        PhysicalMapping {
-            physical_start: physical_address,
-            virtual_start: NonNull::new(start_virt.as_mut_ptr()).expect("acpi mapped null ptr"),
-            region_length: size,
-            mapped_length: size,
-        }
     }
 
-    fn unmap_physical_region<T>(&mut self, _region: PhysicalMapping<T>) {}
+    fn unmap_physical_region<T>(_region: &PhysicalMapping<Self, T>) {}
+}
+pub struct AcpiObject {
+    pub tables: AcpiTables<Acpi>,
+    pub fadt: PhysicalMapping<Acpi, acpi::fadt::Fadt>,
+    pub madt: PhysicalMapping<Acpi, acpi::madt::Madt>,
+    pub interrupt_model: InterruptModel,
+    pub processor_info: Option<ProcessorInfo>
+}
+impl AcpiObject {
+    pub fn new(acpi_tables: AcpiTables<Acpi>) -> Self {
+        let madt = unsafe { acpi_tables.get_sdt::<acpi::madt::Madt>(Signature::MADT) }
+            .expect("Could not get MADT")
+            .expect("Could not get physical mapping");
+        let fadt = unsafe { acpi_tables.get_sdt::<acpi::fadt::Fadt>(Signature::FADT) }
+            .expect("Could not get FADT")
+            .expect("Could not get physical mapping");
+        let madt_result = madt.parse_interrupt_model()
+            .expect("Could not get interrupt model");
+        AcpiObject {
+            tables: acpi_tables,
+            fadt,
+            madt,
+            interrupt_model: madt_result.0,
+            processor_info: madt_result.1
+        }
+    }
+}
+pub fn apic_supported() -> bool {
+    let cpuid = unsafe {core::arch::x86_64::__cpuid(0x1)};
+    (cpuid.edx & (1 << 9)) != 0
 }

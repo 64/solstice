@@ -4,9 +4,7 @@ use crate::{
     mm::{map::MemoryMap, pmm::PhysAllocator},
 };
 use acpi::InterruptModel;
-use apic::{LocalApic, XApic};
 use bootloader::bootinfo::BootInfo;
-
 pub fn kernel_main(info: &BootInfo) {
     drivers::serial::init();
     drivers::vga::text_mode::init().unwrap();
@@ -30,16 +28,15 @@ pub fn kernel_main(info: &BootInfo) {
     PhysAllocator::init(map);
 
     let acpi = drivers::acpi::init();
-
     match acpi.interrupt_model {
-        None => panic!("unknown interrupt model"),
-        Some(InterruptModel::Pic { .. }) => panic!("unsupported acpi interrupt model"),
-        Some(InterruptModel::Apic { .. }) => {
-            if !XApic::is_supported() {
+        InterruptModel::Unknown { .. } => panic!("unsupported acpi interrupt model"),
+        InterruptModel::Apic { .. } => {
+            if !drivers::acpi::apic_supported() {
                 error!("apic: xapic is not supported");
             } else {
                 info!("apic: detected xapic support");
             }
         }
+        _ => {panic!("unknown acpi interrupt model")}
     };
 }

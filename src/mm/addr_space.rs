@@ -2,7 +2,6 @@ use crate::{ds::RwSpinLock, mm::pmm::PhysAllocator};
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{
-        UnusedPhysFrame,
         mapper::{MapToError, MapperAllSizes, MapperFlush},
         page::Size4KiB,
         FrameAllocator,
@@ -14,6 +13,7 @@ use x86_64::{
     PhysAddr,
     VirtAddr,
 };
+use x86_64::structures::paging::{Translate, PhysFrame};
 
 pub struct AddrSpace {
     table: RwSpinLock<OffsetPageTable<'static>>,
@@ -45,10 +45,10 @@ impl AddrSpace {
         virt: VirtAddr,
         phys: PhysAddr,
         flags: PageTableFlags,
-    ) -> Result<MapperFlush<Size4KiB>, MapToError> {
+    ) -> Result<MapperFlush<Size4KiB>, MapToError<Size4KiB>> {
         struct PhysAllocatorProxy;
         unsafe impl FrameAllocator<Size4KiB> for PhysAllocatorProxy {
-            fn allocate_frame(&mut self) -> Option<UnusedPhysFrame<Size4KiB>> {
+            fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
                 Some(PhysAllocator::alloc(0).start)
             }
         }
@@ -64,11 +64,11 @@ impl AddrSpace {
         phys: PhysAddr,
         flags: PageTableFlags,
         alloc: &mut A,
-    ) -> Result<MapperFlush<Size4KiB>, MapToError> {
+    ) -> Result<MapperFlush<Size4KiB>, MapToError<Size4KiB>> {
         unsafe {
             self.table.write().map_to(
                 Page::containing_address(virt),
-                UnusedPhysFrame::containing_address(phys),
+                PhysFrame::containing_address(phys),
                 flags,
                 alloc,
             )

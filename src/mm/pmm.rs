@@ -32,7 +32,7 @@ impl Zone {
 
         let mut blocks_in_order = num_pages;
         for (order, list) in order_list.iter_mut().enumerate() {
-            for block in list.iter_mut().take(blocks_in_order) {
+            for block in list.iter_mut().take(blocks_in_order as usize) {
                 *block = Block::from_order(order as u8);
             }
 
@@ -40,7 +40,7 @@ impl Zone {
         }
 
         let largest_order =
-            (num_pages.next_power_of_two().trailing_zeros() as usize).min(MAX_ORDER + 1);
+            (num_pages.next_power_of_two().trailing_zeros() as usize).min((MAX_ORDER + 1) as usize);
         for list in order_list[largest_order..].iter_mut() {
             list[0] = Block::from_order(largest_order as u8);
         }
@@ -62,7 +62,7 @@ impl Zone {
         let max_order_blocks = x86_64::align_up(num_pages, MAX_ORDER_PAGES) / MAX_ORDER_PAGES;
 
         // TODO: This whole section is a bit of a hack
-        let mut tmp: [Option<&'static mut [Block]>; MAX_ORDER + 1] = [
+        let mut tmp: [Option<&'static mut [Block]>; (MAX_ORDER + 1) as usize] = [
             None, None, None, None, None, None, None, None, None, None, None, None,
         ];
 
@@ -79,7 +79,7 @@ impl Zone {
     // Iterate back up, setting parents to have the correct largest order value
     fn update_tree(&mut self, start_order: u8, mut idx: u64) {
         for current_order in start_order + 1..=MAX_ORDER as u8 {
-            let left_idx = idx & !1;
+            let left_idx = (idx & !1) as usize;
             let left = self.order_list[current_order as usize - 1][left_idx];
             let right = self.order_list[current_order as usize - 1][left_idx + 1];
             self.order_list[current_order as usize][idx as usize / 2] = Block::parent_state(left, right);
@@ -109,10 +109,10 @@ impl Zone {
         }
 
         self.order_list[order as usize][idx as usize] = Block::Used;
-        self.update_tree(order, idx);
+        self.update_tree(order, idx as u64);
 
-        let start_frame = self.pages.start + 2u64.pow(order as u32) * idx;
-        let end_frame = self.pages.start + 2u64.pow(order as u32) * (idx + 1);
+        let start_frame = self.pages.start + 2u64.pow(order as u32) * idx as u64;
+        let end_frame = self.pages.start + 2u64.pow(order as u32) * (idx + 1) as u64;
 
         // Zero out region
         unsafe {
@@ -128,11 +128,13 @@ impl Zone {
     }
 
     fn free(&mut self, range: PhysFrameRange) {
-        let order = range.len().trailing_zeros();
-        debug_assert!(order <= MAX_ORDER);
-        debug_assert!(self.pages.contains_range(range));
+        let len = range.end.start_address() - range.start.start_address();
+        let order = len.trailing_zeros();
+        debug_assert!(order <= MAX_ORDER as u32);
+        debug_assert!(self.pages.start.start_address() <= range.start.start_address());
+        debug_assert!(self.pages.end.start_address() >= range.end.start_address());
 
-        let idx = (range.start - self.pages.start) / range.len();
+        let idx = (range.start - self.pages.start) / len;
         debug_assert_eq!(self.order_list[order as usize][idx as usize], Block::Used);
 
         self.order_list[order as usize][idx as usize] = Block::from_order(order as u8);
@@ -281,7 +283,7 @@ impl PhysAllocator {
     pub fn free(range: PhysFrameRange) {
         for zone in PMM.zones.read().as_ref().unwrap() {
             let mut zone = zone.lock();
-            if zone.pages.contains_range(range) {
+            if zone.pages.start.start_address() <= range.start.start_address() && zone.pages.end.start_address() >= range.end.start_address() {
                 zone.free(range);
                 return;
             }
