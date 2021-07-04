@@ -40,6 +40,36 @@ macro_rules! println {
     ($fmt:expr) => ($crate::print!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => ($crate::print!(concat!($fmt, "\n"), $($arg)*));
 }
+#[allow(unused_macros)]
+#[macro_export]
+macro_rules! debug {
+    //copy paste dbg into debug
+    () => {
+        $crate::println!("[DEBUG {}:{}]", file!(), line!());
+    };
+    ($val:expr) => {
+        // Use of `match` here is intentional because it affects the lifetimes
+        // of temporaries - https://stackoverflow.com/a/48732525/1063961
+        match $val {
+            tmp => {
+                $crate::println!(
+                    "[\x1B[36mDEBUG\x1B[0m {}:{}] {} = {:#?}",
+                    file!(),
+                    line!(),
+                    stringify!($val),
+                    &tmp
+                );
+                tmp
+            }
+        }
+    };
+    ($val:expr,) => { $crate::dbg!($val) };
+    ($($val:expr),+ $(,)?) => {
+        ($($crate::dbg!($val)),+,)
+    };
+}
+
+
 // Lifted from standard library
 #[allow(unused_macros)]
 #[macro_export]
@@ -63,9 +93,9 @@ macro_rules! dbg {
             }
         }
     };
-    ($val:expr,) => { dbg!($val) };
+    ($val:expr,) => { $crate::dbg!($val) };
     ($($val:expr),+ $(,)?) => {
-        ($(dbg!($val)),+,)
+        ($($crate::dbg!($val)),+,)
     };
 }
 #[doc(hidden)]
