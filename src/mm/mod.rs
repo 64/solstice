@@ -32,5 +32,5 @@ pub fn kernel_virt_to_phys(virt: VirtAddr) -> PhysAddr {
 }
 
 pub fn phys_to_kernel_virt(phys: PhysAddr) -> VirtAddr {
-    VirtAddr::new(phys.as_u64())
+    VirtAddr::new(phys.as_u64() + PHYS_OFFSET)
 }

@@ -3,15 +3,14 @@ use aml::{AmlContext, AmlError, AmlValue};
 use core::ptr::NonNull;
 use x86_64::{PhysAddr, VirtAddr, instructions::port::{PortRead,PortWrite}};
 use lazy_static::__Deref;
-use acpi::{AcpiTables, AcpiError, InterruptModel};
+use acpi::{AcpiTables, InterruptModel};
 use acpi::sdt::Signature;
-use acpi::platform::address::GenericAddress;
 use acpi::platform::ProcessorInfo;
+use crate::mm::phys_to_kernel_virt;
 
 static mut SLP_TYPA:u64 = 0;
 pub fn init() -> AcpiObject {
     let our_acpi = unsafe {acpi::AcpiTables::search_for_rsdp_bios(Acpi)}.expect("ACPI table parsing failed");
-
     debug!("acpi: found tables");
     let mut ctx = AmlContext::new();
     match unsafe {core::ptr::read(&our_acpi.dsdt)} {
@@ -117,7 +116,7 @@ impl AcpiHandler for Acpi {
         physical_address: usize,
         size: usize,
     ) -> PhysicalMapping<Self, T> {
-        let start_virt = VirtAddr::new(physical_address as u64);
+        let start_virt = phys_to_kernel_virt(PhysAddr::new(physical_address as u64));
         PhysicalMapping::new(physical_address, NonNull::new(start_virt.as_mut_ptr()).expect("acpi mapped null ptr"), size, size, Acpi)
 
     }

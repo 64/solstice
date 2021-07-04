@@ -2,7 +2,7 @@ use crate::{ds::RwSpinLock, mm::pmm::PhysAllocator};
 use x86_64::{
     registers::control::Cr3,
     structures::paging::{
-        mapper::{MapToError, MapperAllSizes, MapperFlush},
+        mapper::{MapToError, MapperFlush},
         page::Size4KiB,
         FrameAllocator,
         Mapper,

@@ -8,7 +8,8 @@ use core::{
     mem,
     ops::{Deref, DerefMut},
     ptr::NonNull,
-    sync::atomic::{spin_loop_hint as cpu_relax, AtomicUsize, Ordering},
+    hint::spin_loop as cpu_relax,
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use crate::cpu::percpu::PerCpu;

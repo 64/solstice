@@ -15,17 +15,15 @@ pub fn kernel_main(info: &BootInfo) {
         println!("| (___   ___ | |___| |_ _  ___ ___      - Crally");
         println!(" \\___ \\ / _ \\| / __| __| |/ __/ _ \\     - Mehodin");
         println!(" ____) | (_) | \\__ \\ |_| | (_|  __/     - Alex8675");
-        println!("|_____/ \\___/|_|___/\\__|_|\\___\\___|");
+        println!("|_____/ \\___/|_|___/\\__|_|\\___\\___|   - trash");
         println!();
     };
-
+    
     cpu::gdt::load();
     cpu::idt::load();
-
     let map = MemoryMap::new(&info.memory_map);
 
     PhysAllocator::init(map);
-
     let acpi = drivers::acpi::init();
     match acpi.interrupt_model {
         InterruptModel::Unknown { .. } => panic!("unsupported acpi interrupt model"),

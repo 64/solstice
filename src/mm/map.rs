@@ -1,5 +1,5 @@
 // TODO: This should all be implemented in the bootloader, ideally
-use crate::mm::{self, addr_space::AddrSpace};
+use crate::mm::{self, addr_space::AddrSpace, phys_to_kernel_virt};
 use arrayvec::ArrayVec;
 use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
 use core::{
@@ -129,7 +129,7 @@ unsafe impl FrameAllocator<Size4KiB> for MemoryMap {
         // Clear the page
         #[cfg(not(test))]
         unsafe {
-            let page: *mut u8 = out.start_address().as_u64() as *mut u8;
+            let page: *mut u8 = phys_to_kernel_virt(out.start_address()).as_u64() as *mut u8;
             core::intrinsics::write_bytes(
                 page,
                 if cfg!(debug_assertions) { 0xB8 } else { 0x00 },

@@ -4,6 +4,9 @@ use crate::{drivers::vga::text_mode::Writer, ds::SpinLock};
 use core::fmt;
 use lazy_static::lazy_static;
 use log::{Level, Log, Metadata, Record};
+use core::fmt::Debug;
+use alloc::format;
+use alloc::string::ToString;
 
 // Need a separate struct so we can implement Log trait
 pub struct ScreenLocker(SpinLock<ScreenWriter>);
@@ -24,12 +27,11 @@ impl fmt::Write for ScreenWriter {
         Ok(())
     }
 }
-
+// TODO: Macro formatting is broken, maybe due to broken memory alloc
 lazy_static! {
     pub static ref SCREEN: ScreenLocker =
         ScreenLocker(SpinLock::new(ScreenWriter(Writer::default())));
 }
-// TODO: only debug is broke now
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::macros::_print(format_args!($($arg)*)));
@@ -39,34 +41,6 @@ macro_rules! println {
     () => ($crate::print!("\n"));
     ($fmt:expr) => ($crate::print!(concat!($fmt, "\n")));
     ($fmt:expr, $($arg:tt)*) => ($crate::print!(concat!($fmt, "\n"), $($arg)*));
-}
-#[allow(unused_macros)]
-#[macro_export]
-macro_rules! debug {
-    //copy paste dbg into debug
-    () => {
-        $crate::println!("[DEBUG {}:{}]", file!(), line!());
-    };
-    ($val:expr) => {
-        // Use of `match` here is intentional because it affects the lifetimes
-        // of temporaries - https://stackoverflow.com/a/48732525/1063961
-        match $val {
-            tmp => {
-                $crate::println!(
-                    "[\x1B[36mDEBUG\x1B[0m {}:{}] {} = {:#?}",
-                    file!(),
-                    line!(),
-                    stringify!($val),
-                    &tmp
-                );
-                tmp
-            }
-        }
-    };
-    ($val:expr,) => { $crate::dbg!($val) };
-    ($($val:expr),+ $(,)?) => {
-        ($($crate::dbg!($val)),+,)
-    };
 }
 
 
@@ -126,8 +100,11 @@ impl Log for ScreenLocker {
             };
 
             let reset = "\x1B[0m";
-
-            crate::println!("[{}{}{}] {}", color, record.level(), reset, record.args());
+            let args = match record.args().as_str() {
+                None => {"Cannot format log entry"}
+                Some(s) => {s}
+            }; //.to_string();
+            println!("[{}{}{}] {}", color, record.level(), reset, args);
         }
     }
 

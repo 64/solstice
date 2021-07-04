@@ -2,7 +2,8 @@ use crate::cpu::percpu::PerCpu;
 use core::{
     cell::UnsafeCell,
     ops::{Deref, DerefMut},
-    sync::atomic::{spin_loop_hint, AtomicBool, Ordering},
+    hint::spin_loop,
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 pub struct SpinLock<T> {
@@ -24,9 +25,9 @@ impl<T> SpinLock<T> {
     pub fn lock(&self) -> SpinLockGuard<T> {
         // Acquire the lock
         unsafe { PerCpu::current().preempt_inc() };
-        while self.locked.compare_and_swap(false, true, Ordering::Acquire) {
+        while self.locked.compare_exchange(false, true, Ordering::Acquire, Ordering::Acquire).is_err() {
             while self.locked.load(Ordering::Relaxed) {
-                spin_loop_hint();
+                spin_loop();
             }
         }
 
@@ -39,7 +40,7 @@ impl<T> SpinLock<T> {
     pub fn try_lock(&self) -> Option<SpinLockGuard<T>> {
         unsafe { PerCpu::current().preempt_inc() };
 
-        if !self.locked.compare_and_swap(false, true, Ordering::Acquire) {
+        if self.locked.compare_exchange(false, true, Ordering::Acquire, Ordering::Acquire).is_err() {
             Some(SpinLockGuard {
                 locked: &self.locked,
                 data: unsafe { &mut *self.data.get() },
