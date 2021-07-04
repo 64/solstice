@@ -9,7 +9,9 @@
 #![feature(asm)]
 #![feature(alloc_layout_extra)]
 #![feature(alloc_error_handler)]
-
+#![feature(raw_vec_internals)]
+#![feature(ptr_internals)]
+#![feature(allocator_api)]
 #[macro_use]
 extern crate log;
 
@@ -20,14 +22,12 @@ extern crate alloc;
 
 #[macro_use]
 mod macros;
-
 mod cpu;
 mod drivers;
 mod ds;
 mod kernel;
 mod mm;
 mod testing;
-
 use bootloader::BootInfo;
 
 #[no_mangle]
@@ -35,8 +35,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     kernel::kernel_main(boot_info);
 
     // Run tests
-    #[cfg(test)]
-    test_main();
+
 
     info!("nothing to do, halting...");
 

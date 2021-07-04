@@ -1,5 +1,5 @@
 // TODO: This should all be implemented in the bootloader, ideally
-use crate::mm::{self, addr_space::AddrSpace};
+use crate::mm::{self, addr_space::AddrSpace, phys_to_kernel_virt};
 use arrayvec::ArrayVec;
 use bootloader::bootinfo::{MemoryRegion, MemoryRegionType};
 use core::{
@@ -7,7 +7,7 @@ use core::{
     ptr::{self, NonNull},
 };
 use x86_64::{
-    structures::paging::{FrameAllocator, PageSize, PageTableFlags, UnusedPhysFrame, PhysFrame, Size4KiB},
+    structures::paging::{FrameAllocator, PageSize, PageTableFlags, PhysFrame, Size4KiB},
     PhysAddr,
     VirtAddr,
 };
@@ -27,7 +27,7 @@ impl Region {
                 size: offset,
             },
             Region {
-                addr: PhysAddr::new(self.addr.as_usize() + offset),
+                addr: PhysAddr::new(self.addr.as_u64() + offset as u64),
                 size: self.size - offset,
             },
         )
@@ -57,7 +57,7 @@ impl MemoryMap {
             {
                 bump.push(Region {
                     addr: PhysAddr::new(reg.range.start_addr()),
-                    size: reg.range.end_addr() - reg.range.start_addr(),
+                    size: (reg.range.end_addr() - reg.range.start_addr()) as usize,
                 });
             }
         }
@@ -101,24 +101,24 @@ impl MemoryMap {
     }
 
     fn push(&mut self, rg: Region) {
-        self.num_pages += rg.size / Size4KiB::SIZE;
+        self.num_pages += rg.size / Size4KiB::SIZE as usize;
         self.regions.push(rg);
     }
 }
 
 unsafe impl FrameAllocator<Size4KiB> for MemoryMap {
-    fn allocate_frame(&mut self) -> Option<UnusedPhysFrame> {
+    fn allocate_frame(&mut self) -> Option<PhysFrame> {
         let (idx, found_region) = self
             .regions
             .iter_mut()
             .enumerate()
-            .find(|(_, rg)| rg.size >= Size4KiB::SIZE)
+            .find(|(_, rg)| rg.size >= Size4KiB::SIZE as usize)
             .expect("bump allocator - out of memory");
 
         let out = PhysFrame::containing_address(found_region.addr);
 
-        found_region.addr += Size4KiB::SIZE;
-        found_region.size -= Size4KiB::SIZE;
+        found_region.addr += Size4KiB::SIZE as usize;
+        found_region.size -= Size4KiB::SIZE as usize;
         self.num_pages -= 1;
 
         if found_region.size == 0 {
@@ -129,15 +129,15 @@ unsafe impl FrameAllocator<Size4KiB> for MemoryMap {
         // Clear the page
         #[cfg(not(test))]
         unsafe {
-            let page: *mut u8 = VirtAddr::from(out.start_address()).as_mut_ptr();
+            let page: *mut u8 = phys_to_kernel_virt(out.start_address()).as_u64() as *mut u8;
             core::intrinsics::write_bytes(
                 page,
                 if cfg!(debug_assertions) { 0xB8 } else { 0x00 },
-                Size4KiB::SIZE,
+                Size4KiB::SIZE as usize,
             )
         };
 
-        unsafe { Some(UnusedPhysFrame::new(out)) }
+        unsafe { Some(PhysFrame::from(out)) }
     }
 }
 
@@ -173,21 +173,21 @@ pub struct RegionBumpAllocator {
 
 impl RegionBumpAllocator {
     pub fn alloc(&mut self, layout: Layout) -> Option<NonNull<u8>> {
-        let new_off = x86_64::align_up(self.offset + layout.size(), layout.align());
+        let new_off = x86_64::align_up((self.offset + layout.size()) as u64, layout.align() as u64);
 
-        if new_off > self.size {
+        if new_off > self.size as u64 {
             None
         } else {
             let out = NonNull::new(
                 VirtAddr::new(
-                    self.start.as_usize()
-                        + x86_64::align_up(self.offset, layout.align())
+                    self.start.as_u64()
+                        + x86_64::align_up(self.offset as u64, layout.align() as u64)
                         + super::PHYS_OFFSET,
                 )
                 .as_mut_ptr(),
             )
             .unwrap();
-            self.offset = new_off;
+            self.offset = new_off as usize;
             Some(out)
         }
     }

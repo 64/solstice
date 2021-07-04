@@ -4,6 +4,9 @@ use crate::{drivers::vga::text_mode::Writer, ds::SpinLock};
 use core::fmt;
 use lazy_static::lazy_static;
 use log::{Level, Log, Metadata, Record};
+use core::fmt::Debug;
+use alloc::format;
+use alloc::string::ToString;
 
 // Need a separate struct so we can implement Log trait
 pub struct ScreenLocker(SpinLock<ScreenWriter>);
@@ -11,6 +14,7 @@ pub struct ScreenLocker(SpinLock<ScreenWriter>);
 pub struct ScreenWriter(Writer);
 
 impl fmt::Write for ScreenWriter {
+
     fn write_str(&mut self, s: &str) -> fmt::Result {
         #[cfg(any(debug_assertions, test))]
         {
@@ -23,33 +27,36 @@ impl fmt::Write for ScreenWriter {
         Ok(())
     }
 }
-
+// TODO: Macro formatting is broken, maybe due to broken memory alloc
 lazy_static! {
     pub static ref SCREEN: ScreenLocker =
         ScreenLocker(SpinLock::new(ScreenWriter(Writer::default())));
 }
-
+#[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => ($crate::macros::_print(format_args!($($arg)*)));
 }
-
+#[macro_export]
 macro_rules! println {
-    () => (print!("\n"));
-    ($($arg:tt)*) => (print!("{}\n", format_args!($($arg)*)));
+    () => ($crate::print!("\n"));
+    ($fmt:expr) => ($crate::print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::print!(concat!($fmt, "\n"), $($arg)*));
 }
+
 
 // Lifted from standard library
 #[allow(unused_macros)]
+#[macro_export]
 macro_rules! dbg {
     () => {
-        println!("[DEBUG {}:{}]", file!(), line!());
+        $crate::println!("[DEBUG {}:{}]", file!(), line!());
     };
     ($val:expr) => {
         // Use of `match` here is intentional because it affects the lifetimes
         // of temporaries - https://stackoverflow.com/a/48732525/1063961
         match $val {
             tmp => {
-                println!(
+                $crate::println!(
                     "[\x1B[36mDEBUG\x1B[0m {}:{}] {} = {:#?}",
                     file!(),
                     line!(),
@@ -60,17 +67,20 @@ macro_rules! dbg {
             }
         }
     };
-    ($val:expr,) => { dbg!($val) };
+    ($val:expr,) => { $crate::dbg!($val) };
     ($($val:expr),+ $(,)?) => {
-        ($(dbg!($val)),+,)
+        ($($crate::dbg!($val)),+,)
     };
 }
-
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     x86_64::instructions::interrupts::without_interrupts(|| {
-        SCREEN.0.lock().write_fmt(args).unwrap();
+        SCREEN
+            .0
+            .lock()
+            .write_fmt(args)
+            .unwrap();
     });
 }
 
@@ -90,14 +100,17 @@ impl Log for ScreenLocker {
             };
 
             let reset = "\x1B[0m";
-
-            println!("[{}{}{}] {}", color, record.level(), reset, record.args());
+            let args = match record.args().as_str() {
+                None => {"Cannot format log entry"}
+                Some(s) => {s}
+            }; //.to_string();
+            println!("[{}{}{}] {}", color, record.level(), reset, args);
         }
     }
 
     fn flush(&self) {}
 }
-
+#[macro_export]
 macro_rules! test_case {
     ($test_name:ident, $body:expr) => {
         #[test_case]

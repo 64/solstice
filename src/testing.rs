@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 use core::panic::PanicInfo;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 enum ExitCode {
